@@ -1135,10 +1135,10 @@ function applyOrderHash(){
   }catch(e){return false}
 }
 /* ---------------- online sync (Supabase REST). Leave SUPA empty to use the link method only ---------------- */
-const SUPA={url:'',key:''};
+const SUPA={url:'https://ggvmxziesftsffkpskhb.supabase.co',key:'sb_publishable_9ifFJnO8OBx0u19WMCH43Q_IPx7mXnx'};
 const sbOn=()=>!!(SUPA.url&&SUPA.key);const cloud={msg:'',stat:'',busy:false};
 async function sb(path,opt={}){
-  const r=await fetch(SUPA.url.replace(/\/$/,'')+'/rest/v1/'+path,{...opt,headers:{apikey:SUPA.key,Authorization:'Bearer '+SUPA.key,'Content-Type':'application/json',...(opt.headers||{})}});
+  const r=await fetch(SUPA.url.replace(/\/$/,'')+'/rest/v1/'+path,{...opt,headers:{apikey:SUPA.key,...(/^sb_/.test(SUPA.key)?{}:{Authorization:'Bearer '+SUPA.key}),'Content-Type':'application/json',...(opt.headers||{})}});
   if(!r.ok)throw new Error('HTTP '+r.status);const tx=await r.text();return tx?JSON.parse(tx):null;
 }
 async function cloudPublish(){
