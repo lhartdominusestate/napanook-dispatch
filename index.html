@@ -27,7 +27,7 @@ button{cursor:pointer}
 .tab.active{background:#eef0ea;color:var(--ink)}
 .tab .badge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;line-height:18px;text-align:center;padding:0 4px;animation:pulseBadge 1s infinite}
 .spacer{flex:1}
-.gpschip{position:absolute;left:10px;top:52px;z-index:5;font:600 12px system-ui;padding:5px 10px;border-radius:999px;background:#fff;border:1px solid #cfd6d1;box-shadow:0 1px 4px #0003}.gpschip.ok{color:#17703a}.gpschip.warn{color:#9a6a00}.gpschip.bad{color:#b3261e;border-color:#b3261e}
+.gpschip{position:absolute;left:10px;top:52px;z-index:5;font:600 10px system-ui;padding:2px 8px;border-radius:999px;background:#fff;border:1px solid #cfd6d1;box-shadow:0 1px 4px #0003}.gpschip.ok{color:#17703a}.gpschip.warn{color:#9a6a00}.gpschip.bad{color:#b3261e;border-color:#b3261e}
 body.gps-live .presenter{display:none}
 .pilot-tag{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#e9d9a8;border:1px solid #6b5d33;border-radius:999px;padding:4px 10px}
 .icon-btn{background:transparent;border:1px solid #46524a;color:#c8d2ca;border-radius:8px;padding:6px 10px;font-size:12px}
@@ -669,7 +669,7 @@ class MapView{
     this.dA=this.el('text',{class:'dir-end'});this.dB=this.el('text',{class:'dir-end'});this.gDir.append(this.dLn,this.dFl,this.dHd,this.dA,this.dB);this.gTr.append(this.gDir);
     this.gG.append(this.gHalo,this.gLine,this.gArrow,this.gLeft);this.gHalo.style.display=this.gLine.style.display=this.gArrow.style.display=this.gLeft.style.display='none';
     const m=this.el('g',{});m.style.display='none';
-    const k=this.kind==='op'?1:.75;
+    const k=this.kind==='op'?.5:.4;
     m.innerHTML=`<g transform="scale(${k})"><circle r="24" fill="rgba(42,125,225,.16)" stroke="rgba(42,125,225,.55)" stroke-width="1.5"/><g class="rot"><path d="M0,-33 L12,-8 L0,-13 L-12,-8Z" fill="#2a7de1" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></g><circle r="11" fill="#fff"/><circle r="8" fill="#2a7de1"/></g>`;
     this.gM.append(m);this.marker=m;this.rot=m.querySelector('.rot');
   }
@@ -1144,8 +1144,8 @@ function renderHow(c,es,T){
   const dir=DIR_TXT[c.dir||'SN'],pr=state.progress[c.id],started=!!(pr&&(pr.started||pr.rows>0)),entry=(pr&&pr.entry)||'E',st=taskStat(c),Ls=taskAlleys(c);
   let html=`<div class="dir"><i>${dir.ar}</i><span>${T('Work','Trabaje')} ${es?dir.es:dir.en}</span></div>`;
   const lock=sim.status==='active'&&(sim.mode==='route'||sim.mode==='approach');
-  if(!started)html+=`<div class="ent"><span>${T('Enter from','Entrar por')}</span><div class="seg"><button data-entry="E" class="${entry==='E'?'on':''}" ${lock?'disabled':''}>${T('East','Este')}</button><button data-entry="W" class="${entry==='W'?'on':''}" ${lock?'disabled':''}>${T('West','Oeste')}</button></div></div>`;
-  else html+=`<div class="ent">${T('Entered from','Entró por')} ${entry==='E'?T('the East','el Este'):T('the West','el Oeste')}</div>`;
+  if(!started&&!GPS.on)html+=`<div class="ent"><span>${T('Enter from','Entrar por')}</span><div class="seg"><button data-entry="E" class="${entry==='E'?'on':''}" ${lock?'disabled':''}>${T('East','Este')}</button><button data-entry="W" class="${entry==='W'?'on':''}" ${lock?'disabled':''}>${T('West','Oeste')}</button></div></div>`;
+  else if(started&&!GPS.on)html+=`<div class="ent">${T('Entered from','Entró por')} ${entry==='E'?T('the East','el Este'):T('the West','el Oeste')}</div>`;
   html+=`<div class="cnt" id="howCnt">${rowsLine(c)}</div>`;
   if(sim.status==='blockdone'){const dt_=pubTasks().find(o=>o.id===(sim.doneTask||sim.taskId));if(dt_&&isDone(dt_.id))html+=`<div class="doneNote">✓ ${T('Block','Bloque')} ${esc(dt_.block)} ${T('complete','completo')}</div>`}
   const zn=zoneOf(currentTask()||c);
