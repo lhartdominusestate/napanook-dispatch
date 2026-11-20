@@ -589,19 +589,27 @@ function dirLines(t){
   const st=startTask(t),ns=(t.dir||'SN')==='NS',sd=ns?'lo':'hi',mem=[st];let far=st,guard=0;
   while(guard++<8){const nb=vNeighbors(far)[sd];let nx=null;for(const id of nb){nx=pubTasks().find(o=>o.block===id&&o.operation===st.operation&&!isDone(o.id)&&(o.dir||'SN')===(st.dir||'SN'));if(nx)break}if(!nx)break;far=nx;mem.push(far)}
   const g=bg(st.block);let vlo=1e9,vhi=-1e9;const tw=[],te=[];
-  for(const m of mem){const gm=bg(m.block);for(const r of gm.R)for(const q of r){const v=toVT(g,q)[0];vlo=Math.min(vlo,v);vhi=Math.max(vhi,v)}
+  for(const m of mem){const gm=bg(m.block);for(const r of gm.f.rings)for(const q of r){const v=toVT(g,q)[0];vlo=Math.min(vlo,v);vhi=Math.max(vhi,v)}
     const L=taskAlleys({block:m.block,dir:'SN',pat:'all'}),med=a=>{a=a.slice().sort((x,y)=>x-y);return a[a.length>>1]};
     const A=[],B=[];for(const l of L){A.push(toVT(g,scr(gm,l.V,l.a))[1]);B.push(toVT(g,scr(gm,l.V,l.b))[1])}
     if(A.length){tw.push(med(A));te.push(med(B))}}
-  const inset=9,Tw=Math.max(...tw)+inset,Te=Math.min(...te)-inset,Va=ns?vhi:vlo,Vb=ns?vlo:vhi,out=[];
-  for(const [T,side] of[[Te,'E'],[Tw,'W']])out.push({a:scr(g,Va,T),b:scr(g,Vb,T),ns,side,id:st.id+'>'+mem[mem.length-1].id+side});
-  for(const d of out){const dx=d.b[0]-d.a[0],dy=d.b[1]-d.a[1];if(Math.abs(Math.atan2(dy,dx))>Math.PI/2)var ang=Math.PI-Math.abs(Math.atan2(dy,dx));else ang=Math.abs(Math.atan2(dy,dx));
-    if(ang<8*Math.PI/180){const ym=(d.a[1]+d.b[1])/2;d.a=[d.a[0],ym];d.b=[d.b[0],ym]}}
-  /* trim both ends to where the line really is inside the worked blocks (block edges are slightly slanted) */
-  const ids=new Set(mem.map(m=>m.block));
-  for(const d of out){const L=Math.hypot(d.b[0]-d.a[0],d.b[1]-d.a[1]),n=Math.ceil(L/.5);let i0=-1,i1=-1;
-    for(let i=0;i<=n;i++){const q=[d.a[0]+(d.b[0]-d.a[0])*i/n,d.a[1]+(d.b[1]-d.a[1])*i/n];if(ids.has(blockAt(q[0],q[1]))){if(i0<0)i0=i;i1=i}}
-    if(i0>=0&&i1>i0){const f=i=>[d.a[0]+(d.b[0]-d.a[0])*i/n,d.a[1]+(d.b[1]-d.a[1])*i/n],q0=f(Math.min(i1,i0+3)),q1=f(Math.max(i0,i1-3));d.a=q0;d.b=q1}}
+  const ids=new Set(mem.map(m=>m.block)),Va=ns?vhi:vlo,Vb=ns?vlo:vhi,Wr=Math.max(...tw),Er=Math.min(...te),span=Er-Wr,Vlen=Math.abs(Vb-Va);
+  const at=T=>[scr(g,Va,T),scr(g,Vb,T)];
+  /* longest stretch of the line that really lies inside the worked blocks (tiny gaps at shared edges are bridged), pulled in a little from each end */
+  const inRun=(A,B)=>{const L=Math.hypot(B[0]-A[0],B[1]-A[1]),n=Math.max(2,Math.ceil(L/.5)),P=i=>[A[0]+(B[0]-A[0])*i/n,A[1]+(B[1]-A[1])*i/n];
+    let best=null,cur=null,gap=0;
+    for(let i=0;i<=n;i++){const q=P(i);if(ids.has(blockAt(q[0],q[1]))){if(!cur)cur={i0:i,i1:i};cur.i1=i;gap=0}else if(cur&&++gap>6){if(!best||cur.i1-cur.i0>best.i1-best.i0)best=cur;cur=null;gap=0}}
+    if(cur&&(!best||cur.i1-cur.i0>best.i1-best.i0))best=cur;
+    const m=5;if(!best||best.i1-best.i0<2*m+4)return null;return{a:P(best.i0+m),b:P(best.i1-m),cov:(best.i1-best.i0)/n}};
+  /* try positions from the edge inward until the line sits well inside the blocks along its whole length */
+  const place=Ts=>{let best=null;for(const T of Ts){const [A,B]=at(T),r=inRun(A,B);if(r&&(!best||r.cov>best.cov+.02))best={a:r.a,b:r.b,cov:r.cov};if(r&&r.cov>=.92)break}return best};
+  const wide=span>=54,out=[];
+  const mk=(r,side)=>{if(r)out.push({a:r.a,b:r.b,ns,side,grp:st.id,id:st.id+'>'+mem[mem.length-1].id+side})};
+  if(wide){mk(place([9,14,20,28,38,50].filter(i=>i<span*.45).map(i=>Er-i)),'E');mk(place([9,14,20,28,38,50].filter(i=>i<span*.45).map(i=>Wr+i)),'W')}
+  else mk(place([.3,.4,.5,.2,.6].map(f=>Er-span*f)),'E');  /* narrow block: one arrow, off the block-number label */
+  /* keep the arrow level with the rows' cross direction so it reads as a clean horizontal/vertical line */
+  for(const d of out){const dx=d.b[0]-d.a[0],dy=d.b[1]-d.a[1];const ang=Math.abs(Math.atan2(dy,dx)),aa=ang>Math.PI/2?Math.PI-ang:ang;
+    if(aa<8*Math.PI/180){const ym=(d.a[1]+d.b[1])/2;d.a=[d.a[0],ym];d.b=[d.b[0],ym]}}
   return out
 }
 /* headland: the lane runs a few units past the block edge before the turn so every row is a real entrance and exit */
@@ -789,7 +797,7 @@ class MapView{
     this.dirD=list;this.gDir.style.display='';this.drawDir()}
   drawDir(){
     const list=this.dirD;if(!list)return;const k=this.cam.s;
-    list.forEach((d,i)=>{const e=this.dirEls[i],[a,b]=[d.a,d.b];let dx=b[0]-a[0],dy=b[1]-a[1];const L=Math.hypot(dx,dy)||1;dx/=L;dy/=L;
+    list.forEach((d,i)=>{const e=this.dirEls[i],[a,b]=[d.a,d.b];let dx=b[0]-a[0],dy=b[1]-a[1];const L=Math.hypot(dx,dy)||1;dx/=L;dy/=L;const vis=L>=20?'':'none';for(const x of[e.ln,e.fl,e.hd,e.A,e.B])x.style.display=vis;if(L<20)return;
       /* sizes shrink with the blocks so the arrow and both letters always stay inside the worked blocks */
       const sc=Math.min(k,L/70),hs=4.2*sc,fs=10*sc,pad=fs*2.1,nx=-dy,ny=dx,
         p0=[a[0]+dx*pad,a[1]+dy*pad],p1=[b[0]-dx*pad,b[1]-dy*pad],path='M'+p0[0]+','+p0[1]+'L'+p1[0]+','+p1[1];
@@ -1335,8 +1343,8 @@ function syncGuide(){
 }
 function setEntry(side){const t=currentTask();if(!t||(sim.status==='active'&&(sim.mode==='route'||sim.mode==='approach')))return;const pr=state.progress[t.id]=state.progress[t.id]||{};if(pr.started||pr.rows>0)return;pr.entry=side;save();render()}
 function syncDir(){let list=[];if(state.published&&sim.status!=='complete'){const seen=new Set();for(const t of pubTasks()){if(isDone(t.id))continue;const st=startTask(t);if(seen.has(st.id))continue;for(const o of groupTasks(st))seen.add(o.id);seen.add(st.id);list.push(...dirLines(st))}}
-  if(list.length>2){const first=startTask(pubTasks().find(t=>!isDone(t.id))),g=bg(first.block),T=d=>toVT(g,d.a)[1];
-    const E=list.filter(d=>d.side==='E').sort((a,b)=>T(b)-T(a))[0],W=list.filter(d=>d.side==='W').sort((a,b)=>T(a)-T(b))[0];list=[E,W].filter(Boolean)}
+  /* several separate groups on the map: one arrow each (the longer side) so it never gets crowded */
+  const grps=[...new Set(list.map(d=>d.grp))];if(grps.length>1)list=grps.map(gr=>list.filter(d=>d.grp===gr).sort((x,y)=>Math.hypot(y.b[0]-y.a[0],y.b[1]-y.a[1])-Math.hypot(x.b[0]-x.a[0],x.b[1]-x.a[1]))[0]);
   for(const m of[opMap,supMap])if(m)m.setDir(list)}
 function renderAll(){renderSup();renderOp();syncDir()}
 let render=renderAll;
