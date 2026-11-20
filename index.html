@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Napanook Vineyard · Dispatch Pilot V3.0</title>
+<style>
+:root{
+  --ink:#1c2420;--ink2:#34403a;--muted:#6a756e;--line:#dedbd0;--paper:#f2f0e9;--card:#fbfaf6;
+  --green:#4a6a4e;--green-d:#33503a;--green-l:#e3eadf;--gold:#a8873a;--red:#c42b2b;--red-d:#8f1717;--blue:#2a7de1;
+  --radius:10px;--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--ink);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+/* ---------- top bar ---------- */
+#top{flex:0 0 52px;display:flex;align-items:center;gap:20px;padding:0 18px;background:var(--ink);color:#eef0ea;border-bottom:1px solid #000}
+.brand{display:flex;flex-direction:column;line-height:1.1}
+.brand b{font-family:var(--serif);font-weight:600;letter-spacing:.22em;font-size:15px}
+.brand small{font-size:10.5px;letter-spacing:.12em;color:#9fb0a4;text-transform:uppercase;margin-top:3px}
+.tabs{display:flex;gap:4px;background:#2a332e;padding:3px;border-radius:9px;margin-left:12px}
+.tab{border:0;background:transparent;color:#b9c4bc;padding:7px 16px;border-radius:7px;font-weight:600;font-size:13px;position:relative}
+.tab.active{background:#eef0ea;color:var(--ink)}
+.tab .badge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;line-height:18px;text-align:center;padding:0 4px;animation:pulseBadge 1s infinite}
+.spacer{flex:1}
+.gpschip{position:absolute;left:10px;top:52px;z-index:5;font:600 12px system-ui;padding:5px 10px;border-radius:999px;background:#fff;border:1px solid #cfd6d1;box-shadow:0 1px 4px #0003}.gpschip.ok{color:#17703a}.gpschip.warn{color:#9a6a00}.gpschip.bad{color:#b3261e;border-color:#b3261e}
+body.gps-live .presenter{display:none}
+.pilot-tag{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#e9d9a8;border:1px solid #6b5d33;border-radius:999px;padding:4px 10px}
+.icon-btn{background:transparent;border:1px solid #46524a;color:#c8d2ca;border-radius:8px;padding:6px 10px;font-size:12px}
+.icon-btn:hover{background:#2a332e}
+main{flex:1;min-height:0;position:relative}
+.view{position:absolute;inset:0;display:flex;background:var(--paper)}
+/* ---------- map ---------- */
+.mapwrap{position:relative;flex:1;min-width:0;background:#1d2622;overflow:hidden}
+.mapwrap svg{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block;cursor:grab;user-select:none;-webkit-user-select:none}
+.mapwrap svg:active{cursor:grabbing}
+.blk{vector-effect:non-scaling-stroke;stroke-width:1.2px;stroke:rgba(240,244,240,.75);fill:rgba(128,136,146,.26);cursor:pointer;transition:fill .15s}
+.blk.draft{fill:rgba(88,176,100,.26);stroke:#8fe3a0;stroke-dasharray:5 3}
+.blk.auth{fill:rgba(70,178,92,.30);stroke:#7fe59a;stroke-width:1.8px}
+.blk.sel{fill:rgba(140,230,150,.42);stroke:#fff;stroke-width:2.6px}
+.blk.done{fill:rgba(224,52,52,.40);stroke:#ff7a7a;stroke-width:1.8px}
+.blk.dim{fill:rgba(96,104,114,.34);stroke:rgba(230,234,238,.45)}
+.blk.active{stroke:#ffd23f;stroke-width:4px;stroke-dasharray:none}
+.blk.wrong{fill:rgba(255,30,30,.55);stroke:#ff3b3b;stroke-width:4px;animation:blkpulse .8s infinite alternate}
+.op .blk{cursor:default}
+.lbl{paint-order:stroke;stroke:rgba(10,16,12,.85);stroke-linejoin:round;fill:#fff;font-weight:700;text-anchor:middle;dominant-baseline:central;pointer-events:none;font-family:var(--sans)}
+.trail-prev{fill:none;stroke:#aeb6bd;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-width:3px;opacity:.9}
+.trail-cur{fill:none;stroke:#2a7de1;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-width:3.5px}
+.mapctl{position:absolute;right:14px;top:14px;display:flex;flex-direction:column;gap:6px;z-index:5}
+.mapctl button{width:44px;height:44px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(24,32,28,.82);color:#fff;font-size:20px;font-weight:600;backdrop-filter:blur(6px)}
+.mapctl button.txt{font-size:10.5px;letter-spacing:.02em;padding:0}
+.mapctl button.on{background:var(--blue);border-color:#8fc1ff}
+.mapctl button:active{transform:scale(.96)}
+.card{background:rgba(251,250,246,.96);border:1px solid rgba(0,0,0,.1);border-radius:var(--radius);box-shadow:0 6px 24px rgba(0,0,0,.28)}
+.overlay{position:absolute;z-index:4}
+.legend{left:14px;bottom:14px;padding:9px 12px;font-size:12px;display:flex;flex-direction:column;gap:5px;color:var(--ink2)}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:8px;vertical-align:-3px;border:1.5px solid}
+.attrib{position:absolute;right:8px;bottom:6px;font-size:10px;color:rgba(255,255,255,.75);z-index:4;text-shadow:0 1px 2px #000;pointer-events:none;max-width:60%;text-align:right}
+.offline-pill{position:absolute;right:14px;bottom:28px;z-index:6;background:rgba(40,30,10,.92);color:#ffe6a6;border:1px solid #8a6d1c;border-radius:999px;padding:7px 14px;font-size:12px;display:none}
+.img-offline .offline-pill{display:block}
+/* ---------- supervisor ---------- */
+#supPanel{flex:0 0 420px;display:flex;flex-direction:column;background:var(--paper);border-left:1px solid var(--line);min-height:0;overflow-y:auto}
+.ph-head{padding:14px 18px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ph-head h2{margin:0;font-family:var(--serif);font-size:20px;font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:700;letter-spacing:.03em;background:#e8e6dd;color:var(--ink2);white-space:nowrap}
+.pill.green{background:var(--green-l);color:var(--green-d)}
+.pill.amber{background:#f3e7c4;color:#7a5d12}
+.pill.red{background:#f7d4d4;color:var(--red-d)}
+.pill.blue{background:#d9e8fb;color:#1c5bb0}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.form{padding:0 18px 8px;display:grid;gap:9px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+label.f{display:block;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+select,input[type=text],textarea{width:100%;height:36px;border:1px solid #cfccc0;border-radius:8px;background:#fff;padding:0 10px;font-size:14px}
+select:disabled,input:disabled,textarea:disabled{background:#ecebe4;color:#8b948e}
+textarea{height:auto;padding:7px 10px;resize:none;line-height:1.3}
+select:focus,input:focus,textarea:focus{outline:2px solid #9bbc9f;outline-offset:0}
+.sec{border-top:1px solid var(--line);margin:4px 18px 0;padding-top:10px}
+.sec-t{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--green-d);display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.sec-t .n{width:18px;height:18px;border-radius:50%;background:var(--green-d);color:#fff;font-size:10.5px;display:inline-flex;align-items:center;justify-content:center}
+.chips{display:flex;flex-wrap:wrap;gap:5px;min-height:28px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:4px;background:var(--green-l);border:1px solid #b8cbb5;color:var(--green-d);border-radius:999px;padding:3px 4px 3px 10px;font-weight:700;font-size:13px}
+.chip button{border:0;background:transparent;width:20px;height:20px;border-radius:50%;color:var(--green-d);font-size:14px;line-height:1;padding:0}
+.chip button:hover{background:#c9d9c6}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.msg{font-size:12.5px;margin:0;min-height:0}
+.msg.err{color:var(--red-d)}.msg.ok{color:var(--green-d)}.msg.warn{color:#7a5d12}
+.msg button{border:0;background:none;color:#1c5bb0;text-decoration:underline;padding:0;font-size:12.5px}
+.btn{border:1px solid transparent;border-radius:9px;height:38px;padding:0 14px;font-weight:700;font-size:14px;background:var(--green-d);color:#fff}
+.btn:hover{background:#294331}
+.btn.sec2{background:#fff;color:var(--ink2);border-color:#cfccc0}
+.btn.sec2:hover{background:#f2f1ea}
+.btn.danger{background:var(--red);color:#fff}
+.btn.danger:hover{background:var(--red-d)}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.btnrow{display:flex;gap:8px}
+.btnrow .grow{flex:1}
+.tasks{flex:1;min-height:90px;overflow:auto;margin:0 18px;padding:2px 0 6px}
+.task{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px 8px 7px 10px;margin-bottom:6px}
+.task.current{border-color:#8eb394;box-shadow:inset 3px 0 0 var(--green)}
+.task.done{background:#f6ecec;border-color:#e3c4c4}
+.task .no{width:22px;height:22px;border-radius:50%;background:#e8e6dd;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.task .tx{flex:1;min-width:0}
+.task .tx b{display:block;font-size:14px}
+.task .tx small{display:block;color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.task .acts{display:flex;gap:3px}
+.task .acts button{width:26px;height:26px;border-radius:6px;border:1px solid #d6d3c7;background:#faf9f4;font-size:13px;padding:0}
+.task .acts button:disabled{opacity:.3;cursor:not-allowed}
+.empty{border:1px dashed #cdcabd;border-radius:9px;padding:16px;text-align:center;color:var(--muted);font-size:13px}
+.footer{padding:10px 18px 14px;border-top:1px solid var(--line);background:#ebe9e0;display:grid;gap:7px}
+.footer .btn{height:44px;font-size:15px}
+.pubnote{font-size:12px;color:var(--ink2);margin:0;min-height:16px}
+.dispatch{left:14px;top:14px;width:290px;padding:12px 14px}
+.dispatch h4{margin:0 0 8px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.dispatch .big{font-family:var(--serif);font-size:19px;font-weight:600;margin:6px 0 2px}
+.dispatch .sub{font-size:12.5px;color:var(--ink2)}
+.bar{height:7px;background:#e3e1d6;border-radius:4px;overflow:hidden;margin-top:9px}
+.bar i{display:block;height:100%;background:var(--green);width:0;transition:width .15s}
+.alertbanner{left:320px;right:76px;top:14px;background:var(--red);color:#fff;border-radius:12px;padding:12px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 8px 30px rgba(120,0,0,.55);border:2px solid #ffb0b0;animation:bannerPulse 1.1s infinite alternate}
+.alertbanner b{display:block;font-size:15px}
+.alertbanner small{opacity:.92;font-size:12.5px}
+.alertbanner button{margin-left:auto;background:#fff;color:var(--red-d);border:0;border-radius:8px;padding:8px 12px;font-weight:700}
+.alertbanner .ic{font-size:26px}
+.alog{margin-top:8px;font-size:12px;color:var(--ink2);max-height:74px;overflow:auto;border-top:1px solid var(--line);padding-top:6px}
+.alog div{margin-bottom:3px}
+/* ---------- operator ---------- */
+#opPanel{overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;flex:0 0 clamp(340px,34vw,420px);display:flex;flex-direction:column;background:#f5f3ec;border-left:1px solid var(--line);min-height:0;padding:12px 14px 12px;gap:10px}
+.op-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.who b{font-size:16px;display:block}.who span{font-size:12.5px;color:var(--muted)}
+.seg{display:flex;background:#e4e1d6;border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;border-radius:8px;min-width:52px;height:38px;font-weight:700;font-size:14px;color:var(--ink2)}
+.seg button.on{background:var(--ink);color:#fff}
+.now{background:var(--ink);color:#fff;border-radius:14px;padding:14px 16px 14px;position:relative;overflow:hidden}
+.now .k{font-size:12px;letter-spacing:.14em;color:#9fb4a4;font-weight:700}
+.now .bn{display:flex;align-items:baseline;flex-wrap:wrap;gap:14px;margin-top:2px}
+.now .bn small{font-size:68px;line-height:1;font-family:var(--serif);font-weight:600;letter-spacing:-.01em;color:#fff}
+.now .bn.many small{font-size:34px}.now .bn.many b{font-size:50px}.now .bn.many{flex-wrap:nowrap;gap:12px}
+.now .bn b{font-size:68px;line-height:1;font-family:var(--serif);font-weight:600;letter-spacing:-.01em}
+.now .opn{font-size:26px;font-weight:700;margin-top:4px}
+.now .ops{font-size:15px;color:#b6c8ba;margin-top:1px}
+.now .note{margin-top:8px;background:rgba(255,255,255,.12);border-radius:8px;padding:6px 10px;font-size:14px}
+#opPanel>*{flex-shrink:0}
+.how{background:#fff;border:1px solid var(--line);border-radius:14px;padding:11px 13px;display:grid;gap:8px}
+.how .dir{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:700}
+.how .dir i{font-style:normal;display:inline-flex;width:38px;height:38px;border-radius:10px;background:var(--ink);color:#fff;align-items:center;justify-content:center;font-size:24px}
+.how .txt{background:#ffe9a8;border:2px solid #e0b43a;border-radius:10px;padding:9px 11px;font-size:21px;font-weight:800;line-height:1.2;text-transform:uppercase;color:#3b2c00}
+.how .pat{font-size:18px;font-weight:700}
+.how .pat small{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-top:2px}
+.how .ent{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2);font-weight:600}
+.how .ent .seg{flex:1}.how .ent .seg button{flex:1;height:42px;font-size:14px}
+.how .endline{font-size:15px;font-weight:600;color:var(--ink2)}.how .endline b{color:var(--ink);font-size:17px}
+.how .cnt{font-size:13px;color:var(--ink2);font-weight:600}
+.how .thru{font-size:13px;background:#e6f0fb;border:1px solid #b7d1f0;color:#1c4f8f;border-radius:8px;padding:6px 9px;font-weight:600}
+.how .left{font-size:13px;background:#fff1e0;border:1px solid #f0cf9d;color:#7a4a00;border-radius:8px;padding:6px 9px;font-weight:600}
+.presets{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.presets button{border:1px solid #d6d3c7;background:#faf9f4;border-radius:999px;font-size:11.5px;padding:4px 9px;font-weight:600;color:var(--ink2)}
+.presets button:disabled{opacity:.4}
+@keyframes gflash{0%,100%{opacity:.15}50%{opacity:1}}
+.g-flash{fill:none;stroke:#ffd23f;stroke-width:6px;stroke-linecap:round;vector-effect:non-scaling-stroke;animation:gflash 2.6s ease-in-out infinite}
+.g-halo{fill:none;stroke:rgba(0,0,0,.55);stroke-width:10px;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.g-arrow{fill:#ffd23f;stroke:#3b2c00;stroke-width:1.5px;vector-effect:non-scaling-stroke;animation:gflash 2.6s ease-in-out infinite}
+.spec{margin-top:8px;font-size:14px;font-weight:600;color:rgba(255,255,255,.86);letter-spacing:.01em}
+.doneNote{margin-top:6px;font-size:14px;font-weight:700;color:#14633a;background:#dff5e6;border:1px solid #9fd8b2;border-radius:10px;padding:8px 10px}
+.dirtyNote{margin-top:6px;font-size:11.5px;font-weight:600;color:#8a5a00;background:#fff3cf;border:1px solid #ecd48a;border-radius:8px;padding:4px 8px}
+.dir-ln{fill:none;stroke:rgba(255,255,255,.34);stroke-width:1.6px;vector-effect:non-scaling-stroke;stroke-linecap:round}
+.dir-flow{fill:none;stroke:rgba(255,255,255,.8);stroke-width:2px;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-dasharray:3 26;animation:dflow 8s linear infinite}
+@keyframes dflow{to{stroke-dashoffset:-58}}
+.dir-hd{fill:none;stroke:rgba(255,255,255,.7);stroke-width:2px;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
+.dir-end{fill:rgba(255,255,255,.85);font-weight:700;text-anchor:middle;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-linejoin:round;letter-spacing:.04em}
+@media (prefers-reduced-motion:reduce){.dir-flow{animation:none}}
+.g-left{fill:rgba(255,255,255,.15);stroke:#fff;stroke-width:2.5px;stroke-dasharray:5 4;vector-effect:non-scaling-stroke}
+.now .bar{background:rgba(255,255,255,.18)}
+.now .bar i{background:#79d28c}
+.now.idle{background:#3a443f}
+.next{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.next span{font-size:12px;letter-spacing:.12em;font-weight:800;color:var(--muted)}
+.next b{font-size:17px}
+.oplist{flex:1;min-height:60px;overflow:auto;display:flex;flex-direction:column;gap:5px}
+.opi{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:15px}
+.opi .ic{width:24px;text-align:center;font-weight:800}
+.opi .tx{flex:1}.opi .tx b{font-size:16px}.opi small{color:var(--muted)}
+.opi.cur{border-color:var(--green);box-shadow:inset 4px 0 0 var(--green);background:#f2f8f1}
+.opi.done{color:#7b6666;background:#f6ecec}.opi.done .ic{color:var(--red)}
+.daybtns{display:grid;grid-template-columns:1fr;gap:8px}
+.daybtns .btn{height:62px;font-size:20px;border-radius:12px}
+.btn.start{background:#2f7a44}.btn.start:hover{background:#276a3a}
+.btn.end{background:var(--ink);}
+.presenter{border:1.5px dashed #b4ae98;background:#ece9dc;border-radius:12px;padding:8px 10px;display:grid;gap:7px}
+.presenter .ph{display:flex;align-items:baseline;justify-content:space-between;font-size:10.5px;letter-spacing:.1em;font-weight:800;color:#6a5f31}
+.presenter .ph small{font-weight:600;letter-spacing:.04em;color:#8a7f52}
+.presenter .btn{height:36px;font-size:13px;padding:0 8px}
+.presenter .r3{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:6px}
+.presenter .r2{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;font-size:12px;color:#5d5532}
+.presenter .r1 .btn{width:100%}
+.presenter .seg{padding:2px}.presenter .seg button{min-width:34px;height:28px;font-size:12px;border-radius:6px}
+.presenter select{height:28px;font-size:12px;width:auto;padding:0 4px}
+.btn.pulse{animation:btnPulse 1s infinite alternate}
+.opstat{left:14px;top:14px;padding:8px 12px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600}
+/* red alert overlay */
+#alertOverlay{position:absolute;inset:0;z-index:50;background:#b00d0d;color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;animation:redflash 1s infinite alternate}
+#alertOverlay .inner{max-width:1000px}
+#alertOverlay .tri{font-size:90px;line-height:1}
+#alertOverlay h1{margin:6px 0 0;font-size:clamp(44px,8vw,104px);font-weight:900;letter-spacing:.02em;line-height:1}
+#alertOverlay h2{margin:4px 0 14px;font-size:clamp(30px,5vw,64px);font-weight:900;color:#ffe4e4;line-height:1.05}
+#alertOverlay p{margin:8px 0;font-size:clamp(18px,2.6vw,30px);font-weight:600}
+#alertOverlay p.es{color:#ffdede}
+#alertOverlay .auth{margin:14px auto 0;display:inline-block;background:rgba(0,0,0,.28);border-radius:12px;padding:10px 18px;font-size:clamp(16px,2vw,22px);font-weight:700}
+#alertOverlay .sim{margin-top:16px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+#alertOverlay button{margin-top:18px;height:60px;padding:0 34px;border-radius:12px;border:3px solid #fff;background:#fff;color:var(--red-d);font-weight:900;font-size:22px}
+/* about */
+#about{position:absolute;inset:0;z-index:100;background:rgba(10,14,12,.62);display:flex;align-items:center;justify-content:center;padding:20px}
+#about .card{max-width:720px;max-height:88vh;overflow:auto;padding:22px 26px}
+#about h3{font-family:var(--serif);margin:0 0 8px;font-size:22px}
+#about h4{margin:14px 0 4px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--green-d)}
+#about ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.5;color:var(--ink2)}
+@keyframes pulseBadge{50%{transform:scale(1.18)}}
+@keyframes redflash{from{background:#b00d0d}to{background:#d81616}}
+@keyframes blkpulse{from{fill-opacity:.35}to{fill-opacity:.75}}
+@keyframes bannerPulse{from{box-shadow:0 8px 30px rgba(120,0,0,.5)}to{box-shadow:0 8px 40px rgba(255,40,40,.85)}}
+@keyframes btnPulse{from{box-shadow:0 0 0 0 rgba(74,106,78,.6)}to{box-shadow:0 0 0 7px rgba(74,106,78,0)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+@media (max-width:1100px){#supPanel{flex-basis:380px}.dispatch{width:250px}}
+@media (max-height:780px){select,input[type=text]{height:32px}.btn{height:34px}.footer .btn{height:40px}.tasks{min-height:64px}.form{padding-bottom:4px}.footer{padding:8px 18px 10px}
+.form{gap:6px}.sec{padding-top:6px}.ph-head{padding-top:8px}.now .bn b,.now .bn small{font-size:54px}.now .bn.many small{font-size:28px}.now .bn.many b{font-size:40px}.daybtns .btn{height:54px}}
+#devMenu{background:#fbfaf6!important;position:absolute;right:0;top:40px;z-index:200;min-width:230px;padding:6px;display:flex;flex-direction:column;gap:2px;color:var(--ink)}
+#devMenu.hidden{display:none}
+#devMenu button{display:flex;align-items:center;gap:8px;border:0;background:transparent;text-align:left;padding:10px 10px;border-radius:7px;font-size:14px}
+#devMenu button:hover{background:#ecebe2}
+#devMenu .ck{width:16px;color:var(--green-d);font-weight:800}
+#devMenu .dm-t{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:6px 10px 2px;font-weight:700}
+#devMenu .dm-sep{height:1px;background:var(--line);margin:4px 0}
+/* ---------- phone layout (auto below 820 px, or forced from the View menu) ---------- */
+body.dev-phone #top{gap:5px;padding:0 6px;flex-basis:48px}body.dev-phone .spacer{display:none}body.dev-phone #top>div:last-child{margin-left:auto}
+body.dev-phone .brand b{font-size:10px;letter-spacing:.03em;white-space:nowrap}body.dev-phone .vc{display:none}body.dev-phone #btnView{padding:5px 9px;font-size:12px}
+body.dev-phone .brand small{display:none}
+body.dev-phone .tabs{margin-left:0}
+body.dev-phone .tab{padding:7px 8px;font-size:12px;white-space:nowrap}
+body.dev-phone .pilot-tag{font-size:10px;padding:3px 8px;white-space:nowrap}
+body.dev-phone .icon-btn{padding:5px 8px;font-size:14px;white-space:nowrap}
+body.dev-phone .hide-s{display:none}
+body.dev-phone .show-s{display:inline}
+body.dev-phone .icon-btn{min-width:34px}
+body.dev-phone .view{flex-direction:column}
+body.dev-phone .mapwrap{flex:0 0 44%;min-height:190px;width:100%}
+body.dev-phone #supPanel,body.dev-phone #opPanel{flex:1 1 0;width:100%;min-height:0;border-left:0;border-top:1px solid var(--line);overflow-y:auto;-webkit-overflow-scrolling:touch}
+body.dev-phone #supPanel .tasks{flex:none;overflow:visible;min-height:0}
+body.dev-phone #supPanel .footer{position:sticky;bottom:0;z-index:3}
+body.dev-phone #opPanel{padding:10px 12px 0}
+body.dev-phone #opPanel>*{flex-shrink:0}
+body.dev-phone .dispatch h4,body.dev-phone .dispatch .sub,body.dev-phone .dispatch .bar{display:none}
+body.dev-phone .mapctl button.txt{font-size:9px}
+body.dev-phone #opPanel .oplist{flex:none;overflow:visible;min-height:0}
+body.dev-phone .daybtns{position:sticky;bottom:0;z-index:3;background:#f5f3ec;padding:8px 0}
+body.dev-phone .daybtns .btn{height:56px;font-size:18px}
+body.dev-phone .presenter{margin-bottom:12px}
+body.dev-phone .presenter .r2{flex-wrap:wrap}
+body.dev-phone select,body.dev-phone input[type=text],body.dev-phone textarea{font-size:16px}
+body.dev-phone .ph-head{padding:10px 14px 8px}
+body.dev-phone .form{padding:0 14px 8px}
+body.dev-phone .sec{margin:4px 14px 0}
+body.dev-phone .tasks{margin:0 14px}
+body.dev-phone .footer{padding:8px 14px 12px}
+body.dev-phone .now .bn b,body.dev-phone .now .bn small{font-size:52px}
+body.dev-phone .now .opn{font-size:22px}
+body.dev-phone .now{padding:12px 14px}
+body.dev-phone .legend{display:none}
+body.dev-phone .dispatch{left:8px;top:8px;width:calc(100% - 66px);padding:8px 10px}
+body.dev-phone .dispatch .big{font-size:15px;margin:3px 0 0}
+body.dev-phone .dispatch h4{margin-bottom:4px}
+body.dev-phone .dispatch .bar{margin-top:6px}
+body.dev-phone .alertbanner{left:8px;right:60px;top:8px;padding:8px 10px;gap:8px}
+body.dev-phone .alertbanner b{font-size:13px}
+body.dev-phone .alertbanner small{font-size:11px}
+body.dev-phone .alertbanner .ic{font-size:20px}
+body.dev-phone .alertbanner button{padding:6px 9px;font-size:12px}
+body.dev-phone .opstat{left:8px;top:8px;padding:6px 9px;font-size:11.5px;max-width:calc(100% - 66px)}
+body.dev-phone .mapctl{right:8px;top:8px;gap:5px}
+body.dev-phone .mapctl button{width:40px;height:40px;font-size:18px}
+body.dev-phone .attrib{font-size:8.5px;right:6px;bottom:3px;max-width:75%}
+body.dev-phone .offline-pill{font-size:10.5px;right:8px;bottom:22px;padding:5px 10px;max-width:85%}
+body.dev-phone #alertOverlay{overflow:auto;align-items:flex-start;padding:16px}
+body.dev-phone #alertOverlay .tri{font-size:54px}
+body.dev-phone #alertOverlay h1{font-size:38px}
+body.dev-phone #alertOverlay h2{font-size:26px}
+body.dev-phone #alertOverlay p{font-size:17px}
+body.dev-phone #alertOverlay button{height:56px;font-size:18px;padding:0 22px;width:100%}
+body.dev-phone #about .card{padding:16px}
+body.dev-phone .pilot-tag{display:none}
+body.dev-phone #devMenu{right:8px}
+@media (max-height:500px) and (min-width:821px){
+ #top{flex-basis:40px}.brand small{display:none}
+ #supPanel,#opPanel{flex-basis:300px;overflow:hidden auto}
+ .presenter .btn{font-size:11.5px;padding:0 4px}.presenter .r3{grid-template-columns:1fr 1fr}.presenter #pWrong{grid-column:1/-1}.presenter .ph small{display:none}.presenter .r2{flex-wrap:wrap}
+ #opPanel .oplist{flex:none;overflow:visible}
+ .mapctl button{width:36px;height:36px}.legend{display:none}
+ #alertOverlay{overflow:auto;align-items:flex-start}#alertOverlay h1{font-size:44px}#alertOverlay h2{font-size:28px}#alertOverlay .tri{font-size:40px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+ <header id="top">
+  <div class="brand"><b>DOMINUS ESTATE</b><small>Vineyard Operations · Napanook</small></div>
+  <nav class="tabs" role="tablist">
+   <button class="tab active" id="tabSup" data-tab="sup" role="tab">Supervisor<span class="badge hidden" id="tabBadge">1</span></button>
+   <button class="tab" id="tabOp" data-tab="op" role="tab">Operator<span class="hide-s"> · iPad</span></button>
+  </nav>
+  <div class="spacer"></div>
+  <span class="pilot-tag">Pilot<span class="hide-s" id="pilotTxt"> · simulated data &amp; GPS</span></span>
+  <div style="position:relative"><button class="icon-btn" id="btnView" aria-haspopup="true" aria-label="View and device options">View<span class="vc"> ▾</span></button>
+   <div id="devMenu" class="card hidden" role="menu">
+    <div class="dm-t">Device layout</div>
+    <button data-dev="auto" role="menuitemradio"><span class="ck"></span>Auto (match this screen)</button>
+    <button data-dev="phone" role="menuitemradio"><span class="ck"></span>iPhone</button>
+    <button data-dev="ipad" role="menuitemradio"><span class="ck"></span>iPad</button>
+    <button data-dev="desktop" role="menuitemradio"><span class="ck"></span>Desktop</button>
+    <div class="dm-sep"></div>
+    <div class="dm-sep"></div>
+    <button id="btnGps"><span class="ck"></span>Live GPS (field test)</button>
+    <button id="btnGpsJson"><span class="ck"></span>Export GPS log (JSON)</button>
+    <button id="btnGpsCsv"><span class="ck"></span>Export GPS trace (CSV)</button>
+    <button id="btnGpsClr"><span class="ck"></span>Clear GPS log</button>
+    <div class="dm-sep"></div>
+    <button id="btnAbout"><span class="ck"></span>About this pilot</button>
+   </div></div>
+ </header>
+ <main>
+  <!-- ===================== SUPERVISOR ===================== -->
+  <section class="view" id="supView">
+   <div class="mapwrap" id="supMapWrap">
+    <svg id="supSvg" aria-label="Napanook block map"></svg>
+    <div class="overlay card dispatch" id="dispatch"></div>
+    <div class="overlay alertbanner hidden" id="supAlert" role="alert"></div>
+    <div class="mapctl"><button data-z="in" title="Zoom in" aria-label="Zoom in">+</button><button data-z="out" title="Zoom out" aria-label="Zoom out">−</button><button class="txt" data-z="fit" title="Fit ranch">FIT</button></div>
+    <div class="overlay card legend">
+     <span><i style="background:rgba(128,136,146,.45);border-color:#cfd5da"></i>Unassigned</span>
+     <span><i style="background:rgba(140,230,150,.6);border-color:#fff"></i>Selected</span>
+     <span><i style="background:rgba(70,178,92,.5);border-color:#7fe59a"></i>Authorized</span>
+     <span><i style="background:rgba(224,52,52,.55);border-color:#ff7a7a"></i>Completed</span>
+     <span><i style="background:transparent;border-color:#ffd23f;border-width:3px"></i>Active</span>
+    </div>
+    <div class="offline-pill">Satellite imagery is not loading here (offline, or this viewer blocks outside images). Open the file in Safari or Chrome with internet. Block geometry still works.</div>
+    <div class="attrib">Imagery © Esri, Maxar, Earthstar Geographics &amp; the GIS User Community</div>
+   </div>
+   <aside id="supPanel">
+    <div class="ph-head"><h2>Work order</h2><span class="pill" id="woStatus">Draft</span></div>
+    <div class="form">
+     <div><label class="f" for="selRanch">Ranch</label>
+      <select id="selRanch"><option value="Napanook">Napanook Vineyard</option><option disabled>Hopper Ranch — coming soon</option><option disabled>Ulysses Vineyard — coming soon</option></select></div>
+     <div class="row2">
+      <div><label class="f" for="selTractor">Tractor</label><select id="selTractor"></select></div>
+      <div><label class="f" for="selOperator">Operator</label><select id="selOperator"></select></div>
+     </div>
+    </div>
+    <div class="sec">
+     <div class="sec-t"><span class="n">1</span>Operation &amp; blocks</div>
+     <div class="form" style="padding:0">
+      <div><label class="f" for="selOp">Operation</label><select id="selOp"></select></div>
+      <div><label class="f" for="inBlocks">Blocks — type comma-separated, press Enter</label><input type="text" id="inBlocks" placeholder="e.g. 18, 21, 23" autocomplete="off" spellcheck="false"></div>
+      <div class="chips" id="selChips"><span class="hint">Click blocks on the map, or type block numbers and press Enter.</span></div>
+      <p class="msg" id="selMsg"></p>
+      <div class="row2">
+       <div><label class="f" for="selDir">Work direction</label><select id="selDir"><option value="SN">South → North</option><option value="NS">North → South</option></select></div>
+       <div><label class="f" for="selPat">Rows</label><select id="selPat"><option value="all">Every row</option><option value="p12">Every other · 1/2 – 3/4</option><option value="p23">Every other · 2/3 – 4/5</option></select></div>
+      </div>
+      <div><label class="f" for="inNotes">Instructions (optional) — free text replaces the row pattern</label><textarea id="inNotes" rows="1" placeholder="e.g. EN LAS LINEAS QUE NO ESTAN DISCEADOS"></textarea></div>
+      <div class="btnrow"><button class="btn grow" id="btnAdd">Add to work order</button><button class="btn sec2" id="btnClear">Clear</button></div>
+     </div>
+    </div>
+    <div class="sec" style="margin-bottom:6px"><div class="sec-t" style="margin-bottom:0"><span class="n">2</span>Tasks in order <span class="hint" id="taskCount" style="margin-left:auto;font-weight:600;letter-spacing:0;text-transform:none"></span></div></div>
+    <div class="tasks" id="taskList"></div>
+    <div class="footer">
+     <p class="pubnote" id="pubNote"></p>
+     <div class="btnrow"><button class="btn grow" id="btnPublish">Publish to operator</button><button class="btn sec2" id="btnReset" title="Clear the whole pilot">Reset pilot</button></div>
+    </div>
+   </aside>
+  </section>
+  <!-- ===================== OPERATOR ===================== -->
+  <section class="view op hidden" id="opView">
+   <div class="mapwrap" id="opMapWrap">
+    <svg id="opSvg" aria-label="Work map"></svg>
+    <div class="overlay card opstat" id="opStat"></div>
+    <div class="mapctl"><button data-z="in" aria-label="Zoom in">+</button><button data-z="out" aria-label="Zoom out">−</button><button class="txt" data-z="fit">FIT</button><button class="txt on" id="btnFollow" data-z="follow">FOLLOW</button></div>
+    <div class="overlay card legend" id="opLegend"></div>
+    <div class="gpschip hidden" id="gpsChip"></div>
+    <div class="offline-pill">Satellite imagery is not loading here (offline, or this viewer blocks outside images). Open the file in Safari or Chrome with internet. Block geometry still works.</div>
+    <div class="attrib">Imagery © Esri, Maxar, Earthstar Geographics &amp; the GIS User Community · <span id="attribGps">GPS is simulated</span></div>
+   </div>
+   <aside id="opPanel">
+    <div class="op-top"><div class="who"><b id="opTractor"></b><span id="opWho"></span></div>
+     <div class="seg" role="group" aria-label="Language"><button data-lang="en" class="on">EN</button><button data-lang="es">ES</button></div></div>
+    <div class="now" id="nowCard"></div>
+    <div class="how" id="howCard"></div>
+    <div class="next" id="nextCard"></div>
+    <div class="oplist" id="opList"></div>
+    <div class="daybtns"><button class="btn start" id="btnStart"></button><button class="btn end hidden" id="btnEnd"></button></div>
+    <div class="presenter">
+     <div class="ph">PILOT CONTROLS<small>presenter only · not part of the product</small></div>
+     <div class="r3"><button class="btn sec2" id="pPlay">⏸ Pause</button><button class="btn sec2" id="pNext">Next block ▸</button><button class="btn danger" id="pWrong">Wrong block test</button></div>
+     <div class="r1"><button class="btn sec2" id="pEnd">Start work in wrong direction test: OFF</button></div>
+     <div class="r2"><span>Speed</span><div class="seg" id="pSpeed"><button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button><button data-sp="8">8×</button><button data-sp="16">16×</button><button data-sp="32">32×</button></div>
+      <span>Confirm</span><select id="pDelay"><option value="0.5">0.5 s</option><option value="1.5" selected>1.5 s</option><option value="3">3 s</option></select>
+      <button class="btn sec2" id="pReset" style="height:28px;white-space:nowrap">Reset</button></div>
+    </div>
+   </aside>
+   <div id="alertOverlay" class="hidden" role="alertdialog" aria-modal="true" aria-labelledby="aoT">
+    <div class="inner">
+     <div class="tri">⚠</div>
+     <h1 id="aoT">STOP — WRONG BLOCK</h1>
+     <h2 id="aoT2">ALTO — BLOQUE INCORRECTO</h2>
+     <p id="aoEn"></p>
+     <p class="es" id="aoEs"></p>
+     <div class="auth" id="aoAuth"></div>
+     <div class="sim">Simulation · supervisor notified / supervisor notificado</div>
+     <div><button id="aoAck">ACKNOWLEDGE · ENTENDIDO</button></div>
+    </div>
+   </div>
+  </section>
+ </main>
+ <div id="about" class="hidden">
+  <div class="card">
+   <h3>About this pilot</h3>
+   <p class="hint" style="font-size:13.5px">Dominus Estate · Napanook Vineyard dispatch prototype V3.0. This is a self-contained demonstration, not deployed field software.</p>
+   <h4>What is simulated</h4>
+   <ul><li>Tractor position, heading and trails are scripted along generated row paths. It is <b>not live GPS</b>.</li>
+   <li>The supervisor alert is raised in-page. No message leaves this browser; nothing is sent to a server.</li>
+   <li>Work orders are stored only in this browser (localStorage) and are not shared between devices.</li>
+   <li>The wrong-block alert uses point-in-polygon tests against the Napanook block boundaries. GPS position alone does not prove an implement is working; a production system needs working-state inference, GPS-uncertainty handling, false-positive mitigation and field validation.</li>
+   <li>Satellite imagery loads from Esri World Imagery and needs internet access. Blocks 29, 30N and 30S come from the newer plantings geodatabase.</li></ul>
+   <h4>Production roadmap (not built)</h4>
+   <ul><li>Shared secure backend, user identity and roles, persistent ranch / work-order / task records, audit trail.</li>
+   <li>Native iPad app with background GPS, cellular/offline queue and sync, push alerting, GPS logs, privacy and retention policy.</li>
+   <li>Task verification, editing of live work orders, operations catalog, Hopper Ranch and Ulysses Vineyard.</li></ul>
+   <div class="btnrow" style="margin-top:16px"><button class="btn" id="btnAboutClose">Close</button></div>
+  </div>
+ </div>
+</div>
+<script>
+(function(){
+'use strict';
+/* =====================================================================
+   DATA — geometry is in the same screen-space as the V2.7 pilot
+   (block polygons + georeferenced tile affine are preserved unchanged).
+   ===================================================================== */
+const TILE_REF={"x":20973,"y":50365,"z":17,"a":-0.45330642,"b":0.70289503,"c":-0.69718039,"d":-0.48092912,"e":2430.7017,"f":154.5574};
+const FEATURES=[{"id":"15","rings":[[[324.7,1097.1],[323.2,1083.8],[321.2,1075.9],[321.2,1075.9],[321.2,1075.7],[303.4,986.1],[303.3,985.9],[303.3,985.8],[303.3,985.7],[303.3,985.6],[303.1,976.9],[303.1,976.7],[303.1,976.5],[303.2,976.3],[303.3,976.1],[303.5,975.9],[303.6,975.7],[303.8,975.6],[304.1,975.5],[304.3,975.5],[304.4,975.5],[317.7,975.5],[329.1,975.6],[368.0,975.7],[368.2,975.7],[368.4,975.8],[368.6,975.8],[368.8,976.0],[369.0,976.1],[369.2,976.3],[369.3,976.5],[369.4,976.7],[369.4,977.0],[369.4,977.1],[369.5,979.9],[369.5,984.0],[370.1,1011.7],[370.9,1045.0],[371.4,1070.0],[371.7,1082.5],[372.1,1100.1],[372.7,1131.2],[372.7,1131.5],[372.6,1131.8],[372.4,1132.1],[372.3,1132.4],[372.0,1132.6],[371.8,1132.8],[371.5,1133.0],[371.2,1133.1],[370.8,1133.1],[369.6,1133.1],[327.5,1132.9],[327.2,1132.9],[326.8,1132.8],[326.5,1132.7],[326.2,1132.5],[326.0,1132.3],[325.7,1132.0],[325.6,1131.7],[325.4,1131.4],[325.3,1131.1],[325.3,1130.7],[324.7,1097.1]]],"cx":343.0,"cy":1048.8},{"id":"7A","rings":[[[446.5,579.1],[449.8,763.6],[380.2,763.0],[372.9,762.9],[370.5,762.9],[370.4,762.9],[370.1,762.8],[369.9,762.7],[369.7,762.6],[369.5,762.5],[369.3,762.3],[369.2,762.1],[369.1,761.8],[369.1,761.6],[369.1,761.5],[367.5,674.2],[367.5,674.1],[367.5,674.0],[365.8,579.7],[365.8,579.6],[365.8,579.4],[365.9,579.2],[366.0,578.9],[366.2,578.8],[366.3,578.6],[366.5,578.5],[366.8,578.4],[367.0,578.4],[367.1,578.4],[446.5,579.1]]],"cx":407.8,"cy":671.0},{"id":"25","rings":[[[600.9,260.2],[603.5,391.7],[563.2,391.4],[531.5,391.2],[512.0,391.1],[511.9,391.0],[511.6,391.0],[511.4,390.9],[511.2,390.8],[511.0,390.6],[510.9,390.5],[510.7,390.3],[510.6,390.0],[510.6,389.8],[510.6,389.7],[510.6,388.5],[509.5,334.2],[508.4,278.7],[508.1,265.5],[508.1,265.4],[508.1,265.2],[508.0,260.8],[508.0,260.7],[508.1,260.5],[508.1,260.3],[508.2,260.1],[508.4,259.9],[508.6,259.7],[508.8,259.6],[509.0,259.5],[509.2,259.5],[509.4,259.5],[519.1,259.6],[521.6,259.6],[538.7,259.7],[600.9,260.2]]],"cx":555.8,"cy":325.6},{"id":"26","rings":[[[674.2,260.7],[676.8,392.2],[641.4,392.0],[624.3,391.9],[603.5,391.7],[600.9,260.2],[629.0,260.4],[636.3,260.5],[674.2,260.7]]],"cx":638.9,"cy":326.2},{"id":"3S","rings":[[[342.5,387.8],[340.2,258.5],[354.9,258.6],[355.9,311.3],[355.9,311.3],[356.0,312.7],[356.0,314.4],[357.2,381.0],[357.3,384.3],[357.3,385.4],[357.3,386.6],[357.3,386.7],[357.3,386.9],[357.2,387.1],[357.1,387.3],[356.9,387.5],[356.8,387.7],[356.6,387.8],[356.3,387.9],[356.1,387.9],[356.0,387.9],[342.5,387.8]]],"cx":348.8,"cy":323.2},{"id":"4","rings":[[[340.2,258.5],[342.5,387.8],[297.4,387.4],[273.0,387.2],[272.9,387.2],[272.6,387.1],[272.4,387.1],[272.2,386.9],[272.0,386.8],[271.8,386.6],[271.7,386.4],[271.6,386.2],[271.6,385.9],[271.6,385.8],[271.5,379.1],[271.5,379.0],[271.5,378.8],[271.5,378.6],[273.8,372.2],[273.3,345.0],[263.0,318.5],[263.0,318.4],[262.9,318.2],[257.7,280.4],[257.7,280.3],[257.7,280.2],[257.7,279.1],[257.6,278.0],[257.6,275.8],[257.4,270.4],[257.4,270.2],[257.4,270.1],[257.2,261.4],[257.2,261.2],[257.2,261.0],[257.3,260.8],[257.4,260.6],[257.6,260.4],[257.7,260.2],[257.9,260.1],[258.2,260.0],[258.4,260.0],[275.3,257.9],[275.4,257.9],[275.5,257.9],[280.4,258.0],[304.8,258.2],[340.2,258.5]]],"cx":303.3,"cy":320.3},{"id":"6S","rings":[[[330.8,394.8],[334.1,570.8],[227.9,569.8],[220.6,569.8],[220.5,569.8],[220.2,569.7],[220.0,569.6],[219.8,569.5],[219.6,569.4],[219.5,569.2],[217.0,565.8],[216.9,565.7],[216.8,565.5],[216.7,565.3],[206.0,515.3],[206.0,515.1],[206.0,515.0],[205.9,506.7],[205.8,505.0],[205.8,504.8],[205.9,504.6],[206.0,504.4],[208.3,499.4],[208.3,499.4],[208.4,499.3],[208.4,499.2],[265.1,396.6],[265.2,396.5],[265.3,396.3],[265.5,396.2],[267.9,394.5],[268.1,394.4],[268.2,394.4],[268.4,394.3],[268.6,394.3],[273.5,394.4],[330.8,394.8]]],"cx":277.9,"cy":490.7},{"id":"8S","rings":[[[299.7,578.6],[303.3,762.3],[303.2,762.3],[289.8,762.2],[265.4,762.0],[263.0,762.0],[260.5,762.0],[260.4,762.0],[260.2,761.9],[260.0,761.8],[259.8,761.7],[259.6,761.6],[257.2,759.4],[257.1,759.3],[256.9,759.1],[256.8,758.9],[256.7,758.7],[256.7,758.7],[254.1,748.7],[254.1,748.6],[237.9,669.7],[235.2,656.3],[221.7,589.7],[221.6,589.5],[221.6,589.4],[221.5,582.9],[221.5,582.7],[221.5,582.6],[221.4,579.4],[221.4,579.3],[221.5,579.1],[221.5,578.8],[221.7,578.6],[221.8,578.4],[222.0,578.3],[222.2,578.2],[222.4,578.1],[222.6,578.0],[222.8,578.0],[299.7,578.6]]],"cx":268.9,"cy":662.0},{"id":"22","rings":[[[592.7,581.1],[596.0,764.7],[519.1,764.1],[519.0,764.1],[518.8,764.0],[518.5,763.9],[518.3,763.8],[518.1,763.7],[518.0,763.5],[517.9,763.3],[517.8,763.0],[517.7,762.8],[517.7,762.7],[517.7,761.6],[517.6,758.2],[517.6,754.9],[517.5,750.5],[517.4,742.7],[515.4,637.2],[514.5,583.0],[514.5,582.9],[514.5,582.8],[514.4,581.8],[514.4,581.7],[514.5,581.4],[514.5,581.2],[514.7,581.0],[514.8,580.8],[515.0,580.6],[515.2,580.5],[515.4,580.4],[515.6,580.4],[515.8,580.4],[518.2,580.4],[520.6,580.4],[592.7,581.1]]],"cx":555.2,"cy":672.5},{"id":"24R","rings":[[[510.3,398.4],[510.4,398.2],[510.5,398.0],[510.7,397.9],[510.9,397.7],[511.1,397.7],[511.4,397.6],[511.5,397.6],[519.2,397.6],[535.0,397.8],[536.2,478.4],[536.5,478.4],[538.2,572.2],[537.4,572.2],[515.1,572.0],[515.0,572.0],[514.7,572.0],[514.5,571.9],[514.3,571.7],[514.1,571.6],[514.0,571.4],[513.8,571.2],[513.8,571.0],[513.7,570.7],[513.7,570.6],[512.3,495.6],[512.1,487.3],[512.0,482.3],[511.9,481.6],[511.9,481.5],[512.0,478.1],[511.8,478.1],[511.8,477.3],[510.2,398.9],[510.2,398.6],[510.3,398.4]]],"cx":524.3,"cy":484.7},{"id":"24S","rings":[[[536.4,476.6],[535.0,397.8],[565.6,398.0],[586.3,398.2],[589.5,570.8],[538.2,570.4],[536.5,476.6],[536.4,476.6]]],"cx":562.3,"cy":484.3},{"id":"6N","rings":[[[334.1,570.8],[330.8,394.8],[356.6,395.0],[356.7,395.0],[356.9,395.1],[357.1,395.2],[357.3,395.3],[357.5,395.4],[357.7,395.6],[357.8,395.8],[357.9,396.1],[357.9,396.3],[357.9,396.5],[357.9,396.7],[361.1,569.6],[361.1,569.7],[361.0,570.0],[361.0,570.2],[360.9,570.4],[360.7,570.6],[360.5,570.7],[360.3,570.9],[360.1,571.0],[359.9,571.0],[359.8,571.0],[352.4,570.9],[334.1,570.8]],[[365.4,569.3],[362.3,396.5],[362.3,396.4],[362.3,396.1],[362.4,395.9],[362.5,395.7],[362.6,395.5],[362.8,395.3],[363.0,395.2],[363.2,395.1],[363.5,395.1],[363.6,395.1],[366.0,395.1],[402.7,395.4],[407.6,395.5],[407.7,395.5],[408.6,395.5],[408.7,395.2],[408.7,395.2],[412.2,571.4],[366.8,571.1],[366.7,571.0],[366.4,571.0],[366.2,570.9],[366.0,570.8],[365.8,570.6],[365.7,570.5],[365.5,570.3],[365.5,570.0],[365.4,569.8],[365.4,569.5],[365.4,569.3]]],"cx":372.0,"cy":483.2},{"id":"2","rings":[[[424.1,311.7],[423.0,259.1],[455.1,259.4],[457.4,388.6],[434.2,388.4],[426.9,388.3],[426.8,388.3],[426.5,388.2],[426.3,388.2],[426.1,388.0],[425.9,387.9],[425.8,387.7],[425.6,387.5],[425.6,387.3],[425.5,387.0],[425.5,386.9],[425.5,385.8],[425.4,383.6],[424.3,318.1],[424.1,311.7]]],"cx":440.3,"cy":323.8},{"id":"1","rings":[[[457.4,388.6],[455.1,259.4],[502.7,259.7],[502.8,259.7],[503.0,259.8],[503.3,259.9],[503.5,260.0],[503.6,260.1],[503.8,260.3],[503.9,260.5],[504.0,260.8],[504.1,261.0],[504.1,261.1],[504.1,265.5],[504.3,273.3],[505.8,356.5],[506.2,376.5],[506.3,386.5],[506.4,387.6],[506.4,387.7],[506.3,388.0],[506.2,388.2],[506.1,388.4],[506.0,388.6],[505.8,388.7],[505.6,388.9],[505.4,388.9],[505.2,389.0],[505.0,389.0],[502.6,389.0],[495.3,388.9],[457.4,388.6]]],"cx":480.7,"cy":324.2},{"id":"8N","rings":[[[303.3,762.3],[299.7,578.6],[359.5,579.1],[359.6,579.1],[359.8,579.1],[360.1,579.2],[360.3,579.3],[360.5,579.5],[360.6,579.7],[360.7,579.9],[360.8,580.1],[360.9,580.3],[360.9,580.5],[360.9,581.6],[361.0,587.1],[361.4,608.2],[362.5,661.5],[364.3,754.7],[364.4,759.1],[364.4,761.4],[364.4,761.5],[364.4,761.7],[364.3,761.9],[364.2,762.1],[364.1,762.3],[363.9,762.5],[363.7,762.6],[363.5,762.7],[363.2,762.7],[363.1,762.7],[360.7,762.7],[358.2,762.7],[346.0,762.6],[316.7,762.4],[303.3,762.3],[303.3,762.3]]],"cx":332.1,"cy":670.7},{"id":"5S","rings":[[[457.7,394.7],[461.2,571.7],[412.2,571.4],[408.7,395.2],[408.8,395.0],[408.9,394.9],[409.1,394.7],[409.3,394.6],[409.5,394.5],[409.8,394.4],[409.9,394.4],[419.6,394.5],[457.7,394.7]]],"cx":435.0,"cy":483.0},{"id":"9","rings":[[[261.6,767.9],[261.7,767.6],[261.9,767.5],[262.0,767.3],[262.2,767.2],[262.5,767.1],[262.7,767.1],[262.8,767.1],[282.4,767.2],[314.1,767.3],[360.5,767.6],[362.9,767.6],[363.0,767.6],[363.3,767.7],[363.5,767.7],[363.7,767.9],[363.9,768.0],[364.0,768.2],[364.2,768.4],[364.3,768.6],[364.3,768.9],[364.3,769.0],[364.3,770.1],[364.6,783.4],[366.5,868.9],[366.5,871.1],[366.7,881.1],[366.7,881.2],[366.7,881.4],[366.6,881.7],[366.5,881.9],[366.3,882.1],[366.2,882.2],[366.0,882.3],[365.8,882.4],[365.5,882.5],[365.4,882.5],[341.0,882.3],[333.7,882.3],[287.3,882.0],[287.1,882.0],[286.9,882.0],[286.7,881.9],[286.5,881.8],[281.5,878.4],[281.3,878.3],[281.2,878.1],[281.1,877.9],[281.0,877.7],[281.0,877.6],[272.8,840.9],[261.9,787.6],[261.9,787.4],[261.9,787.3],[261.6,774.1],[261.6,774.0],[261.6,773.9],[261.5,768.4],[261.5,768.2],[261.5,768.0],[261.6,767.9]]],"cx":317.5,"cy":822.7},{"id":"27","rings":[[[676.8,392.2],[674.2,260.7],[704.7,260.9],[724.2,261.1],[726.7,261.1],[731.5,261.1],[731.7,261.1],[731.9,261.2],[732.1,261.3],[732.3,261.4],[732.5,261.5],[732.7,261.7],[732.8,261.9],[732.9,262.2],[732.9,262.4],[732.9,262.5],[733.3,279.2],[733.3,279.3],[733.3,279.4],[731.2,297.1],[729.1,314.9],[720.7,385.8],[720.7,386.0],[720.6,386.3],[720.5,386.5],[718.1,389.8],[718.0,389.9],[717.9,390.0],[715.5,392.2],[715.4,392.3],[715.2,392.4],[715.0,392.5],[714.8,392.5],[714.6,392.5],[676.8,392.2]]],"cx":701.6,"cy":322.9},{"id":"14","rings":[[[285.1,888.4],[285.2,888.2],[285.3,888.0],[285.5,887.8],[285.7,887.7],[285.9,887.6],[286.2,887.6],[286.3,887.6],[329.2,888.0],[341.5,888.1],[348.8,888.1],[353.7,888.2],[353.8,888.2],[354.0,888.2],[354.2,888.3],[354.4,888.4],[354.6,888.6],[354.8,888.8],[354.9,889.0],[355.0,889.2],[355.0,889.4],[355.0,889.6],[355.2,898.2],[356.3,898.2],[366.1,898.3],[366.2,898.3],[366.4,898.3],[366.6,898.4],[366.8,898.5],[367.0,898.7],[367.2,898.9],[367.3,899.1],[367.4,899.3],[367.4,899.5],[367.4,899.7],[368.0,919.5],[368.7,953.9],[368.9,968.4],[368.9,968.5],[368.9,968.7],[368.8,968.9],[368.7,969.1],[368.6,969.3],[368.4,969.5],[368.2,969.6],[368.0,969.7],[367.7,969.7],[367.6,969.7],[362.7,969.7],[352.9,969.6],[333.4,969.4],[323.6,969.3],[309.0,969.2],[301.7,969.1],[301.6,969.1],[301.3,969.1],[301.1,969.0],[300.9,968.9],[300.7,968.7],[300.6,968.5],[300.4,968.3],[300.4,968.2],[295.9,958.6],[290.8,933.5],[288.6,919.1],[285.2,903.6],[285.2,903.5],[285.2,903.4],[285.2,902.3],[285.1,896.7],[285.0,891.2],[285.0,890.2],[285.0,890.1],[285.0,890.0],[285.0,889.0],[285.0,888.8],[285.0,888.6],[285.1,888.4]]],"cx":328.6,"cy":928.2},{"id":"7B","rings":[[[449.8,763.6],[446.5,579.1],[508.7,579.6],[508.8,579.6],[509.0,579.7],[509.3,579.7],[509.5,579.9],[509.7,580.0],[509.8,580.2],[509.9,580.4],[510.0,580.6],[510.1,580.9],[510.1,581.0],[510.1,582.4],[510.2,585.2],[510.8,618.5],[511.1,635.1],[512.8,729.4],[513.4,762.7],[513.4,762.8],[513.3,763.1],[513.3,763.3],[513.2,763.5],[513.0,763.7],[512.8,763.9],[512.6,764.0],[512.4,764.1],[512.2,764.1],[512.1,764.1],[509.6,764.1],[449.8,763.6]]],"cx":479.9,"cy":671.6},{"id":"24N","rings":[[[589.7,570.8],[586.5,398.2],[680.5,399.1],[707.4,399.3],[712.3,399.3],[714.7,399.4],[714.8,399.4],[715.1,399.4],[715.3,399.5],[715.5,399.6],[715.7,399.8],[715.8,400.0],[716.0,400.2],[716.0,400.4],[716.1,400.6],[716.1,400.8],[716.4,417.4],[716.4,419.1],[716.5,422.4],[716.5,424.1],[716.5,424.2],[716.5,424.3],[708.0,490.8],[703.7,524.0],[699.4,557.3],[699.4,557.3],[697.2,570.6],[697.2,570.7],[697.1,570.9],[697.0,571.2],[696.9,571.3],[696.7,571.5],[696.5,571.6],[696.3,571.7],[696.0,571.7],[695.9,571.7],[693.5,571.7],[688.6,571.7],[676.4,571.6],[620.2,571.1],[589.7,570.8]]],"cx":648.4,"cy":482.2},{"id":"7C","rings":[[[369.6,768.1],[369.7,767.8],[369.9,767.7],[370.0,767.5],[370.2,767.4],[370.5,767.3],[370.7,767.3],[370.8,767.3],[392.8,767.5],[495.4,768.4],[507.6,768.5],[512.5,768.5],[512.6,768.5],[512.8,768.6],[513.0,768.7],[513.2,768.8],[513.4,768.9],[513.6,769.1],[513.7,769.3],[513.8,769.6],[513.8,769.8],[513.8,769.9],[513.9,771.3],[514.0,779.6],[514.3,796.3],[515.6,867.0],[515.5,881.0],[515.5,882.4],[515.5,882.5],[515.5,882.8],[515.4,883.0],[515.3,883.2],[515.2,883.4],[515.0,883.5],[514.8,883.7],[514.6,883.7],[514.3,883.8],[514.3,883.8],[372.9,882.4],[372.8,882.4],[372.6,882.4],[372.3,882.3],[372.1,882.1],[372.0,882.0],[371.8,881.8],[371.7,881.6],[371.6,881.4],[371.5,881.1],[371.5,881.0],[371.4,872.7],[371.1,857.4],[369.8,782.6],[369.7,782.5],[369.7,782.4],[369.5,768.6],[369.5,768.4],[369.5,768.2],[369.6,768.1]]],"cx":442.7,"cy":825.5},{"id":"23","rings":[[[596.0,764.7],[592.7,581.1],[681.8,581.9],[689.1,581.9],[691.5,582.0],[691.6,582.0],[691.9,582.0],[692.1,582.1],[692.3,582.2],[692.5,582.4],[692.6,582.6],[692.8,582.8],[692.8,583.0],[692.9,583.2],[692.9,583.4],[693.0,586.7],[693.3,605.6],[693.4,608.9],[693.4,609.0],[693.4,609.1],[682.8,700.0],[680.7,717.7],[676.5,753.2],[676.5,753.3],[674.2,764.4],[674.2,764.4],[674.1,764.6],[674.0,764.8],[673.9,765.0],[673.7,765.2],[673.5,765.3],[673.3,765.4],[673.0,765.4],[672.9,765.4],[653.4,765.3],[621.6,765.0],[596.0,764.7]]],"cx":640.1,"cy":669.4},{"id":"21","rings":[[[518.3,770.2],[518.4,770.0],[518.6,769.8],[518.7,769.6],[518.9,769.5],[519.1,769.4],[519.4,769.4],[519.5,769.4],[524.4,769.4],[548.8,769.7],[561.0,769.8],[585.4,770.0],[597.7,770.2],[670.9,770.9],[671.0,770.9],[671.2,771.0],[671.5,771.1],[671.7,771.2],[671.9,771.3],[672.0,771.5],[672.1,771.7],[672.2,771.9],[672.3,772.2],[672.3,772.3],[672.7,791.2],[673.5,832.5],[717.0,852.5],[717.2,852.6],[717.4,852.8],[717.6,853.0],[717.7,853.2],[717.8,853.4],[717.8,853.7],[717.8,853.8],[717.9,856.0],[718.0,859.3],[718.1,867.1],[718.1,868.2],[718.1,868.5],[718.1,868.7],[718.0,868.9],[713.3,877.7],[710.9,882.1],[710.8,882.2],[710.8,882.3],[708.4,885.6],[708.3,885.7],[708.1,885.9],[707.9,886.0],[707.7,886.1],[707.5,886.1],[707.4,886.1],[704.9,886.1],[680.5,885.9],[656.1,885.6],[570.6,884.7],[568.2,884.7],[568.0,884.7],[567.8,884.7],[567.6,884.6],[567.5,884.5],[560.4,880.2],[521.7,879.8],[521.6,879.8],[521.4,879.8],[521.1,879.7],[520.9,879.5],[520.7,879.4],[520.6,879.2],[520.5,879.0],[520.4,878.8],[520.3,878.5],[520.3,878.4],[520.2,871.7],[519.7,846.2],[518.4,784.1],[518.2,773.1],[518.2,773.0],[518.2,772.9],[518.2,770.7],[518.2,770.5],[518.2,770.4],[518.3,770.2]]],"cx":606.0,"cy":830.4},{"id":"20","rings":[[[523.7,1006.2],[522.6,941.9],[522.4,930.8],[522.3,927.5],[522.3,927.4],[522.3,927.2],[522.4,926.9],[522.5,926.7],[522.7,926.5],[522.8,926.4],[523.0,926.3],[523.3,926.2],[523.5,926.1],[523.6,926.1],[565.2,926.5],[566.2,926.5],[565.6,891.3],[565.6,891.2],[565.6,890.9],[565.7,890.7],[565.8,890.5],[566.0,890.3],[566.1,890.2],[566.3,890.0],[566.6,890.0],[566.8,889.9],[566.9,889.9],[569.4,889.9],[588.9,890.1],[603.5,890.2],[618.2,890.4],[698.8,891.2],[698.9,891.2],[699.2,891.2],[699.4,891.3],[699.6,891.4],[699.8,891.6],[699.9,891.7],[700.1,892.0],[700.2,892.2],[700.2,892.4],[700.2,892.6],[700.3,897.0],[700.3,898.1],[700.3,898.3],[700.3,898.6],[700.2,898.8],[690.7,917.6],[676.5,945.2],[660.0,977.2],[641.1,1013.7],[636.4,1022.5],[636.4,1022.6],[636.3,1022.7],[633.9,1026.0],[633.8,1026.1],[633.8,1026.2],[631.4,1028.4],[631.2,1028.5],[631.0,1028.6],[623.9,1031.9],[616.5,1035.1],[616.3,1035.1],[616.1,1035.2],[615.9,1035.2],[613.5,1035.1],[608.6,1035.1],[579.3,1034.8],[576.9,1034.8],[576.7,1034.8],[576.5,1034.7],[576.3,1034.7],[524.5,1008.7],[524.4,1008.6],[524.2,1008.4],[524.0,1008.2],[523.9,1008.0],[523.8,1007.8],[523.7,1007.6],[523.7,1007.4],[523.7,1006.4],[523.7,1006.3],[523.7,1006.2]]],"cx":603.0,"cy":957.6},{"id":"3N","rings":[[[423.0,259.1],[424.1,311.7],[357.2,311.4],[357.1,311.4],[356.2,311.4],[356.2,311.3],[355.9,311.3],[354.9,258.6],[423.0,259.1]]],"cx":389.5,"cy":285.2},{"id":"18","rings":[[[506.2,1191.2],[486.8,1200.9],[486.8,1201.0],[469.5,1208.5],[467.4,1209.6],[467.4,1209.6],[448.0,1218.2],[445.9,1219.3],[445.8,1219.3],[424.3,1229.1],[424.2,1229.1],[413.4,1233.4],[413.4,1233.4],[404.7,1236.3],[400.4,1237.7],[400.3,1237.7],[400.1,1237.8],[400.0,1237.8],[391.3,1237.7],[391.2,1237.7],[391.0,1237.6],[390.8,1237.6],[390.5,1237.4],[390.4,1237.3],[390.2,1237.1],[390.1,1236.9],[390.0,1236.7],[390.0,1236.4],[389.9,1236.3],[389.0,1177.5],[389.0,1177.4],[389.1,1177.2],[389.1,1177.0],[391.2,1171.5],[393.3,1165.9],[395.4,1160.4],[399.5,1149.4],[401.6,1143.9],[405.7,1130.7],[407.8,1123.0],[407.8,1122.9],[409.8,1116.3],[411.9,1108.6],[411.9,1108.5],[414.0,1101.9],[414.0,1101.8],[414.0,1101.7],[416.1,1097.3],[416.2,1097.2],[418.3,1093.8],[420.4,1090.5],[422.6,1087.2],[422.6,1087.1],[426.8,1081.7],[428.9,1078.4],[429.0,1078.3],[433.3,1072.8],[437.5,1067.3],[437.6,1067.2],[439.7,1065.0],[439.9,1064.9],[444.2,1061.6],[444.4,1061.5],[446.5,1060.4],[446.8,1060.3],[447.0,1060.3],[447.1,1060.3],[514.3,1061.1],[514.4,1061.1],[514.5,1061.1],[514.7,1061.1],[515.0,1061.2],[515.2,1061.3],[515.3,1061.5],[515.5,1061.6],[515.6,1061.9],[515.7,1062.1],[515.8,1062.3],[515.8,1062.4],[515.8,1062.5],[517.4,1164.4],[517.4,1164.5],[517.3,1164.8],[517.3,1165.0],[517.1,1165.2],[517.0,1165.4],[516.8,1165.5],[516.7,1165.6],[514.8,1166.7],[512.8,1169.4],[512.8,1169.5],[510.9,1171.8],[508.9,1182.5],[508.9,1182.5],[508.9,1182.6],[506.9,1190.3],[506.8,1190.5],[506.7,1190.7],[506.5,1190.9],[506.4,1191.1],[506.2,1191.2]]],"cx":455.3,"cy":1144.8},{"id":"19","rings":[[[525.2,1060.1],[525.3,1059.9],[525.5,1059.7],[525.6,1059.6],[525.8,1059.4],[536.6,1054.0],[536.8,1054.0],[537.1,1053.9],[537.2,1053.9],[543.7,1054.0],[543.8,1054.0],[543.9,1054.0],[550.4,1055.2],[556.4,1056.3],[556.4,1056.3],[593.9,1064.6],[594.0,1064.7],[594.0,1064.7],[594.1,1064.7],[600.5,1065.9],[607.0,1067.1],[613.6,1068.3],[613.7,1068.3],[618.0,1069.4],[618.3,1069.5],[618.5,1069.6],[618.6,1069.8],[618.8,1070.0],[618.9,1070.2],[619.0,1070.4],[619.0,1070.6],[619.1,1070.8],[619.2,1078.5],[619.2,1078.6],[619.1,1078.9],[619.1,1079.1],[594.0,1145.3],[593.9,1145.3],[593.8,1145.6],[593.7,1145.7],[589.4,1150.1],[589.3,1150.3],[585.0,1153.5],[584.8,1153.7],[563.2,1164.5],[563.2,1164.5],[541.6,1174.2],[541.4,1174.3],[541.2,1174.3],[541.0,1174.3],[528.0,1174.1],[527.9,1174.1],[527.7,1174.1],[527.5,1174.0],[527.3,1173.9],[527.1,1173.7],[526.9,1173.6],[526.8,1173.3],[526.7,1173.1],[526.7,1172.9],[526.7,1172.7],[525.1,1060.7],[525.1,1060.6],[525.1,1060.3],[525.2,1060.1]]],"cx":564.0,"cy":1109.0},{"id":"5N","rings":[[[461.2,571.7],[457.7,394.7],[488.0,394.9],[502.7,395.0],[505.1,395.0],[505.2,395.0],[505.4,395.0],[505.7,395.1],[505.9,395.2],[506.1,395.4],[506.2,395.6],[506.3,395.8],[506.4,396.0],[506.5,396.2],[506.5,396.4],[506.8,410.8],[507.2,427.4],[509.2,521.8],[510.2,570.6],[510.2,570.7],[510.2,571.0],[510.1,571.2],[510.0,571.4],[509.9,571.6],[509.7,571.7],[509.5,571.9],[509.3,571.9],[509.0,572.0],[508.9,572.0],[504.0,572.0],[461.2,571.7]]],"cx":483.9,"cy":483.4},{"id":"10","rings":[[[436.5,928.8],[436.5,928.7],[436.5,928.7],[436.5,928.7],[436.6,928.5],[436.7,928.5],[436.7,928.4],[436.9,928.3],[436.9,928.3],[436.9,928.2],[437.1,928.1],[437.2,928.1],[437.2,928.1],[437.4,928.0],[437.5,928.0],[437.5,928.0],[437.7,928.0],[437.8,928.0],[438.0,928.0],[462.4,928.1],[508.8,928.3],[511.3,928.3],[511.3,928.3],[511.4,928.3],[511.6,928.4],[511.6,928.4],[511.7,928.4],[511.9,928.5],[511.9,928.5],[511.9,928.5],[512.1,928.6],[512.2,928.7],[512.4,928.8],[512.4,928.8],[512.4,928.9],[512.6,929.0],[512.6,929.1],[512.6,929.1],[512.8,929.3],[512.8,929.3],[512.8,929.4],[512.9,929.6],[512.9,929.7],[513.0,929.9],[513.0,929.9],[513.0,930.0],[513.0,930.1],[513.0,930.1],[513.0,932.9],[513.1,935.1],[513.2,942.9],[514.3,991.7],[514.5,997.8],[514.5,998.9],[514.5,999.0],[514.5,999.1],[514.5,999.1],[514.5,999.1],[514.4,999.3],[514.4,999.4],[514.4,999.4],[514.3,999.6],[514.3,999.7],[514.3,999.7],[514.2,999.9],[514.2,999.9],[514.2,1000.0],[514.0,1000.2],[514.0,1000.2],[514.0,1000.2],[513.8,1000.4],[513.8,1000.4],[513.7,1000.4],[513.5,1000.5],[513.5,1000.6],[513.5,1000.6],[513.3,1000.7],[478.0,1000.8],[458.7,1010.8],[458.2,1011.1],[440.4,1021.4],[440.2,1021.4],[440.1,1021.4],[440.1,1021.4],[439.9,1021.4],[439.8,1021.4],[439.8,1021.4],[439.6,1021.4],[439.5,1021.4],[439.5,1021.4],[439.3,1021.3],[439.2,1021.3],[439.2,1021.3],[439.0,1021.2],[439.0,1021.1],[438.9,1021.1],[438.8,1021.0],[438.7,1020.9],[438.5,1020.7],[438.5,1020.7],[438.5,1020.6],[438.4,1020.5],[438.4,1020.4],[438.3,1020.4],[438.3,1020.2],[438.2,1020.1],[438.2,1020.1],[438.2,1019.9],[438.2,1019.8],[438.2,1019.8],[438.2,1019.7],[438.2,1019.6],[438.1,1018.5],[437.9,1005.8],[437.2,973.6],[436.3,932.5],[436.2,931.4],[436.2,929.7],[436.2,929.7],[436.2,929.6],[436.2,929.6],[436.2,929.5],[436.2,929.3],[436.2,929.3],[436.3,929.2],[436.3,929.0],[436.3,929.0],[436.4,928.9],[436.5,928.8]]],"cx":473.6,"cy":967.5},{"id":"11","rings":[[[372.6,895.2],[372.6,895.1],[372.6,895.1],[372.6,895.1],[372.8,894.9],[372.8,894.9],[372.8,894.9],[373.0,894.7],[373.0,894.7],[373.1,894.7],[373.2,894.5],[373.3,894.5],[373.3,894.5],[373.5,894.4],[373.6,894.4],[373.6,894.4],[373.8,894.4],[373.9,894.4],[374.1,894.4],[381.5,894.4],[383.9,894.4],[408.3,894.5],[415.6,894.6],[420.5,894.6],[420.6,894.6],[420.6,894.6],[420.8,894.6],[420.9,894.7],[420.9,894.7],[421.1,894.7],[421.2,894.8],[421.2,894.8],[421.4,894.9],[421.5,894.9],[421.6,895.1],[421.7,895.1],[421.7,895.2],[421.8,895.3],[421.9,895.4],[421.9,895.4],[422.0,895.6],[422.0,895.6],[422.1,895.7],[422.1,895.9],[422.2,896.0],[422.2,896.2],[422.2,896.2],[422.2,896.3],[422.2,896.4],[422.2,896.4],[422.3,898.1],[422.4,902.5],[422.4,904.2],[422.5,907.5],[422.5,907.5],[422.5,907.6],[422.5,907.7],[422.5,907.7],[422.4,907.9],[422.4,907.9],[422.4,908.0],[422.3,908.2],[422.3,908.3],[422.3,908.3],[422.2,908.5],[422.2,908.5],[422.1,908.6],[422.0,908.7],[422.0,908.8],[422.0,908.8],[421.8,908.9],[421.8,909.0],[421.7,909.0],[421.5,909.1],[421.5,909.1],[421.5,909.1],[421.3,909.2],[421.2,909.2],[421.2,909.2],[421.0,909.3],[420.9,909.3],[420.9,909.3],[420.6,909.3],[418.2,909.3],[410.9,909.2],[388.9,909.1],[374.3,909.1],[374.2,909.0],[374.0,909.0],[373.9,909.0],[373.9,909.0],[373.7,908.9],[373.6,908.9],[373.6,908.9],[373.4,908.8],[373.3,908.7],[373.3,908.7],[373.1,908.6],[373.1,908.5],[372.9,908.3],[372.9,908.3],[372.9,908.3],[372.8,908.1],[372.7,908.0],[372.7,908.0],[372.6,907.8],[372.6,907.7],[372.6,907.7],[372.6,907.5],[372.6,907.5],[372.6,907.4],[372.6,907.3],[372.5,907.2],[372.5,906.7],[372.5,905.6],[372.3,896.7],[372.3,896.2],[372.3,896.1],[372.3,896.0],[372.3,896.0],[372.3,896.0],[372.3,895.7],[372.4,895.7],[372.4,895.7],[372.4,895.4],[372.4,895.4],[372.5,895.4],[372.6,895.2]]],"cx":397.4,"cy":901.8},{"id":"12","rings":[[[387.4,1094.0],[386.9,1094.8],[386.8,1094.8],[386.7,1095.0],[386.7,1095.0],[386.6,1095.0],[386.5,1095.2],[386.5,1095.2],[386.4,1095.2],[386.2,1095.3],[386.2,1095.4],[386.1,1095.4],[385.9,1095.5],[385.9,1095.5],[385.7,1095.5],[385.6,1095.5],[385.6,1095.5],[385.3,1095.5],[382.9,1095.5],[380.5,1095.5],[378.0,1095.5],[377.9,1095.5],[377.7,1095.4],[377.7,1095.4],[377.6,1095.4],[377.4,1095.3],[377.4,1095.3],[377.3,1095.3],[377.1,1095.2],[377.1,1095.2],[377.1,1095.1],[376.9,1095.0],[376.8,1094.9],[376.7,1094.8],[376.7,1094.7],[376.6,1094.7],[376.5,1094.5],[376.5,1094.5],[376.5,1094.4],[376.4,1094.2],[376.4,1094.2],[376.4,1094.1],[376.3,1093.9],[376.3,1093.9],[376.3,1093.8],[376.3,1093.7],[376.3,1093.7],[376.3,1092.6],[375.8,1072.0],[374.6,1016.5],[373.0,942.2],[372.6,924.4],[372.5,918.9],[372.4,917.2],[372.4,916.1],[372.4,916.1],[372.4,916.0],[372.4,916.0],[372.4,915.9],[372.5,915.7],[372.5,915.6],[372.5,915.6],[372.5,915.4],[372.6,915.4],[372.6,915.3],[372.7,915.1],[372.7,915.1],[372.7,915.0],[372.8,915.0],[372.9,914.9],[372.9,914.9],[372.9,914.8],[373.1,914.7],[373.1,914.6],[373.2,914.6],[373.4,914.5],[373.4,914.5],[373.4,914.5],[373.6,914.4],[373.7,914.4],[373.7,914.4],[373.9,914.3],[374.0,914.3],[374.2,914.3],[381.6,914.3],[403.5,914.5],[420.6,914.5],[420.7,914.5],[420.7,914.6],[420.9,914.6],[421.0,914.6],[421.0,914.6],[421.2,914.7],[421.3,914.7],[421.3,914.7],[421.5,914.8],[421.5,914.8],[421.6,914.9],[429.0,920.5],[429.0,920.5],[429.0,920.5],[429.2,920.6],[429.2,920.7],[429.3,920.7],[429.4,920.9],[429.4,920.9],[429.5,920.9],[434.5,928.7],[434.5,928.7],[434.6,928.9],[434.6,929.0],[434.7,929.0],[434.7,929.2],[434.8,929.3],[434.8,929.5],[434.8,929.6],[434.8,929.6],[434.8,929.7],[434.8,929.7],[435.1,943.6],[435.3,949.2],[436.4,999.1],[436.8,1019.1],[436.9,1021.9],[436.9,1021.9],[436.9,1022.0],[436.9,1022.0],[436.8,1022.0],[436.8,1022.3],[436.8,1022.3],[436.8,1022.4],[436.7,1022.6],[436.7,1022.6],[436.7,1022.6],[432.0,1031.5],[422.7,1040.2],[414.1,1046.2],[401.9,1060.9],[394.9,1074.9],[387.4,1094.0]]],"cx":402.0,"cy":989.9},{"id":"28","rings":[[[725.5,246.1],[708.3,246.0],[706.4,248.2],[701.5,251.5],[701.2,251.5],[701.2,251.5],[701.2,251.5],[701.0,251.6],[700.9,251.6],[700.9,251.6],[700.7,251.6],[676.2,251.5],[581.0,251.1],[576.1,251.1],[576.0,251.0],[575.8,251.0],[575.8,251.0],[575.7,251.0],[575.5,250.9],[575.5,250.9],[575.5,250.9],[575.3,250.8],[575.2,250.7],[575.2,250.7],[575.0,250.6],[575.0,250.5],[574.8,250.3],[574.8,250.3],[574.8,250.3],[574.6,250.1],[574.6,250.0],[574.6,250.0],[574.5,249.8],[574.5,249.7],[574.5,249.7],[574.5,249.5],[574.4,249.5],[574.4,249.4],[574.4,249.3],[574.4,249.3],[573.9,223.7],[573.7,218.2],[573.5,207.1],[573.4,203.7],[573.4,203.7],[573.4,203.6],[573.4,203.6],[573.4,203.6],[573.4,203.3],[573.4,203.3],[573.5,203.2],[573.5,203.0],[573.5,203.0],[573.6,203.0],[573.7,202.8],[573.7,202.7],[573.7,202.7],[573.7,202.7],[573.8,202.5],[573.9,202.5],[573.9,202.5],[574.1,202.3],[574.1,202.3],[574.1,202.3],[574.3,202.1],[574.4,202.1],[574.4,202.1],[574.6,202.0],[574.7,202.0],[574.7,202.0],[574.9,202.0],[575.0,202.0],[575.2,202.0],[585.0,202.0],[592.3,202.0],[597.2,202.0],[597.2,202.0],[646.1,203.4],[653.5,204.5],[665.6,208.9],[680.0,213.3],[744.8,214.1],[744.9,214.1],[745.1,214.2],[745.1,214.3],[745.1,214.3],[745.3,214.5],[745.3,214.5],[745.3,214.6],[745.4,214.7],[745.5,214.8],[745.5,214.8],[745.6,215.0],[745.6,215.1],[745.6,215.3],[745.6,215.4],[745.6,215.4],[745.6,215.5],[745.6,215.6],[745.7,220.0],[745.8,222.2],[745.8,222.2],[745.8,222.3],[745.8,222.4],[745.8,222.4],[745.8,222.6],[745.7,222.7],[745.7,222.7],[745.7,222.9],[745.7,222.9],[743.4,229.6],[743.4,229.6],[743.3,229.7],[741.0,234.1],[738.7,238.5],[738.6,238.7],[738.5,238.7],[738.5,238.8],[736.2,242.1],[736.1,242.1],[736.0,242.3],[736.0,242.3],[735.9,242.3],[735.8,242.5],[735.8,242.5],[735.7,242.5],[735.5,242.7],[735.5,242.7],[733.1,243.8],[730.6,244.9],[730.6,244.9],[730.4,245.0],[730.4,245.0],[730.3,245.0],[725.5,246.1]]],"cx":650.6,"cy":228.5},{"id":"30S","rings":[[[366.8,165.2],[366.8,166.3],[367.9,251.7],[367.9,252.9],[352.0,252.7],[303.1,252.2],[256.7,251.8],[256.6,251.8],[256.5,251.8],[256.3,251.7],[256.1,251.6],[256.0,251.5],[255.8,251.3],[255.7,251.2],[255.7,251.0],[255.6,250.8],[255.6,250.7],[255.4,234.0],[255.4,233.9],[255.4,233.9],[257.5,212.8],[257.5,212.8],[259.7,195.1],[259.7,195.0],[261.9,181.9],[261.9,181.7],[262.0,181.4],[262.1,181.3],[264.4,177.0],[264.4,176.9],[264.5,176.9],[266.8,173.6],[266.9,173.4],[267.0,173.4],[271.8,169.0],[272.1,168.8],[279.4,165.6],[281.8,164.5],[282.2,164.4],[343.3,165.0],[366.8,165.2]]],"acres":2.87,"cx":311.6,"cy":208.7},{"id":"30N","rings":[[[366.8,166.3],[366.8,165.2],[467.8,166.1],[470.2,166.2],[470.7,166.3],[473.1,167.4],[473.3,167.5],[473.4,167.6],[475.9,169.8],[480.8,174.3],[480.9,174.4],[481.0,174.5],[483.5,177.8],[483.6,178.0],[486.1,183.6],[488.6,189.0],[490.9,191.0],[493.4,193.3],[495.8,195.5],[495.9,195.5],[496.0,195.6],[496.1,195.8],[496.2,196.0],[496.2,196.2],[498.9,215.1],[498.9,215.1],[498.9,215.2],[499.4,245.2],[499.4,245.3],[499.4,245.5],[499.3,245.7],[499.2,245.9],[499.1,246.0],[499.0,246.1],[498.8,246.2],[498.6,246.3],[498.4,246.3],[498.3,246.3],[491.6,246.3],[489.5,249.1],[489.4,249.2],[489.3,249.3],[486.9,251.5],[486.7,251.7],[481.8,253.8],[481.4,253.9],[437.4,253.5],[367.9,252.9],[367.9,252.9],[367.9,251.7],[366.8,166.3]]],"acres":3.36,"cx":433.1,"cy":209.6},{"id":"29","rings":[[[501.2,193.4],[501.3,193.2],[501.4,193.1],[501.6,192.9],[501.7,192.8],[501.9,192.8],[502.1,192.7],[502.2,192.7],[504.4,192.8],[506.6,191.8],[507.0,191.7],[524.1,191.8],[524.6,191.9],[526.8,192.9],[533.9,193.0],[534.0,193.0],[534.1,193.0],[539.0,194.2],[546.3,195.3],[546.4,195.4],[551.3,196.5],[556.2,197.7],[561.1,198.8],[566.0,200.0],[566.0,200.0],[566.2,200.0],[568.7,201.2],[570.9,202.2],[573.1,202.2],[573.2,202.2],[573.4,202.2],[573.6,202.3],[573.7,202.4],[573.9,202.5],[574.0,202.7],[574.1,202.9],[574.2,203.0],[574.2,203.2],[574.2,203.3],[575.0,248.8],[575.0,248.9],[575.0,249.1],[574.9,249.3],[574.8,249.5],[574.7,249.6],[574.6,249.7],[574.4,249.8],[574.2,249.9],[574.0,249.9],[573.9,249.9],[517.8,249.5],[517.3,249.4],[514.9,248.2],[514.7,248.1],[514.6,248.0],[512.4,246.1],[505.5,246.0],[505.4,246.0],[505.2,246.0],[505.0,245.9],[504.9,245.8],[504.7,245.7],[504.6,245.5],[504.5,245.4],[504.4,245.2],[504.4,245.0],[501.6,226.2],[501.6,226.1],[501.6,226.0],[501.2,198.4],[501.2,198.3],[501.2,198.2],[501.1,193.8],[501.2,193.4]]],"acres":1.19,"cx":538.0,"cy":220.8}];
+const CONFIG={
+  baseSpeed:38,          // map units / second at 1x while working rows
+  detourSpeed:14,        // wrong-block demo drift speed (slow enough to narrate)
+  transitSpeed:110,      // non-working relocation between blocks
+  endWarnUnits:3.5, // wrong-direction warning after about 4 m (12 ft) inside the block
+  wrongConfirmSeconds:1.5, // simulated confirmation delay after entering an unauthorized polygon
+  laneSpacing:7,         // simulated row spacing (map units)
+  laneInset:1.2,         // keep route points just inside the boundary
+  workScale:0.34         // operator follow zoom (map units per pixel)
+};
+const OPS=[{k:'mow',en:'Mowing',es:'Desmalezar'},{k:'spray',en:'Spraying',es:'Fumigar'},{k:'cult',en:'Cultivation',es:'Cultivar'},{k:'disc',en:'Discing',es:'Rastreo'},{k:'cane',en:'Cane cutting',es:'Cortar sarmientos'}];
+const OPERATORS=['Operador 1','Operador 2','Ricardo','Sergio','Alfredo'];
+const TRACTORS=['Tractor 1','Tractor 2'];
+const MISSING_NOTE={};
+const KEY='napanook-pilot-v3';
+const $=id=>document.getElementById(id);
+const NS='http://www.w3.org/2000/svg';
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const opByKey=k=>OPS.find(o=>o.k===k)||OPS[0];
+
+/* ---------- geometry helpers ---------- */
+for(const f of FEATURES){const xs=f.rings.flat().map(p=>p[0]),ys=f.rings.flat().map(p=>p[1]);f.bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]}
+const FBY={};FEATURES.forEach(f=>FBY[f.id]=f);
+const RANCH_BB=FEATURES.reduce((b,f)=>[Math.min(b[0],f.bb[0]),Math.min(b[1],f.bb[1]),Math.max(b[2],f.bb[2]),Math.max(b[3],f.bb[3])],[1e9,1e9,-1e9,-1e9]);
+function inRings(x,y,rings){let ins=false;for(const ring of rings){let hit=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if(((a[1]>y)!==(b[1]>y))&&(x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0]))hit=!hit}if(hit)ins=!ins}return ins}
+function blockAt(x,y){for(const f of FEATURES){const b=f.bb;if(x<b[0]||x>b[2]||y<b[1]||y>b[3])continue;if(inRings(x,y,f.rings))return f.id}return null}
+function edgeSpans(f,x){const cuts=[];for(const ring of f.rings)for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length];if((a[0]<=x&&b[0]>x)||(b[0]<=x&&a[0]>x))cuts.push(a[1]+(x-a[0])*(b[1]-a[1])/(b[0]-a[0]))}cuts.sort((p,q)=>p-q);const spans=[];for(let i=0;i+1<cuts.length;i++){const mid=(cuts[i]+cuts[i+1])/2;if(inRings(x,mid,f.rings)&&cuts[i+1]-cuts[i]>3)spans.push([cuts[i],cuts[i+1]])}return spans}
+function samples(a,b,step){const d=Math.hypot(b[0]-a[0],b[1]-a[1]);const n=Math.max(1,Math.ceil(d/step));const out=[];for(let i=1;i<=n;i++){const t=i/n;out.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t])}return out}
+const ROWS={"1":20,"2":13,"3S":6,"3N":28,"4":34,"5S":20,"5N":20,"6S":54,"6N":28,"7A":33,"7B":26,"7C":59,"8S":32,"8N":25,"9":42,"10":31,"11":20,"12":31,"14":33,"15":30,"18":59,"19":43,"21":81,"22":32,"23":41,"24R":10,"24S":21,"24N":53,"25":38,"26":30,"27":24,"28":70,"29":30,"30S":46,"30N":54,"34":57,"35":58,"39":30,"40":13,"41":30,"42":30,"A":35,"B":35,"C":11,"C2":27,"D":14,"D2":10,"E":10,"F":39,"G":39,"H":24,"I-S":55,"I-N":10,"J":10,"K1":10,"L":12};
+const NOTE_PRESETS=['EN LAS LINEAS QUE NO ESTAN DISCEADOS'];
+const DIR_TXT={SN:{en:'South → North',es:'Sur → Norte',ar:'↑',short:'S→N'},NS:{en:'North → South',es:'Norte → Sur',ar:'↓',short:'N→S'}};
+const PAT_TXT={all:{en:'Every row',es:'Todas las líneas',short:'every row'},p12:{en:'Every other row · 1/2 – 3/4',es:'Línea de por medio · 1/2 – 3/4',short:'every other 1/2–3/4'},p23:{en:'Every other row · 2/3 – 4/5',es:'Línea de por medio · 2/3 – 4/5',short:'every other 2/3–4/5'}};
+const COVDONE=.92,CORR_GAP=16;
+const geomCache={},alleyCache={},routeCache={};
+/* Per-block row frame. u = row direction (unit, points screen-down = east); v = across the rows (screen-right = north; row numbers rise with v).
+   Rows are spread EVENLY across the block from its row count, parallel to the block's own long sides, so lanes are symmetric in every block. */
+function bg(id){
+  if(geomCache[id])return geomCache[id];
+  const f=FBY[id];let sx=0,sy=0;
+  for(const ring of f.rings)for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length];let dx=b[0]-a[0],dy=b[1]-a[1];if(Math.hypot(dx,dy)<2||Math.abs(dx)>Math.abs(dy)*.5)continue;if(dy<0){dx=-dx;dy=-dy}sx+=dx;sy+=dy}
+  let ux=0,uy=1;const m=Math.hypot(sx,sy);if(m>1){ux=sx/m;uy=sy/m}
+  const vx=uy,vy=-ux,R=f.rings.map(r=>r.map(p=>[p[0]*vx+p[1]*vy,p[0]*ux+p[1]*uy]));
+  let vmin=1e9,vmax=-1e9,tmin=1e9,tmax=-1e9;for(const r of R)for(const p of r){vmin=Math.min(vmin,p[0]);vmax=Math.max(vmax,p[0]);tmin=Math.min(tmin,p[1]);tmax=Math.max(tmax,p[1])}
+  const w=vmax-vmin,n=Math.max(3,ROWS[id]||Math.round(w/2.4));
+  return geomCache[id]={f,ux,uy,vx,vy,R,vmin,vmax,tmid:(tmin+tmax)/2,tmin,tmax,w,n,sp:w/n,spans:{},cross:{}};
+}
+const scr=(g,V,T)=>[V*g.vx+T*g.ux,V*g.vy+T*g.uy];
+const toVT=(g,p)=>[p[0]*g.vx+p[1]*g.vy,p[0]*g.ux+p[1]*g.uy];
+const alleyV=(g,k)=>g.vmin+g.w*k/g.n;
+function alleySpan(g,k){if(k in g.spans)return g.spans[k];const sp=edgeSpans({rings:g.R},alleyV(g,k));return g.spans[k]=sp.length?sp.reduce((b,c)=>!b||c[1]-c[0]>b[1]-b[0]?c:b,null):null}
+/* ordered list of the lanes (rows to work) a task needs, in travel order from the chosen start end. alley k sits between row k and k+1 */
+/* ids of blocks (from the list) that share a long side with block id: hi = north neighbours, lo = south neighbours */
+function vNbIds(id,ids){const g=bg(id),out={hi:[],lo:[]};
+  for(const o of ids){if(o===id)continue;const c=crossOf(g,o),ov=Math.min(c.thi,g.tmax)-Math.max(c.tlo,g.tmin);if(ov<.4*Math.min(g.tmax-g.tmin,c.thi-c.tlo))continue;
+    if(c.lo>=g.vmax-6&&c.lo-g.vmax<=8)out.hi.push([o,ov]);else if(c.hi<=g.vmin+6&&g.vmin-c.hi<=8)out.lo.push([o,ov])}
+  for(const k of['hi','lo'])out[k]=out[k].sort((a,b)=>b[1]-a[1]).map(x=>x[0]);return out}
+function orderIds(t){const L=[...state.tasks,...pubTasks()].filter(o=>o.operation===(t.operation||o.operation)&&(o.dir||'SN')===(t.dir||'SN')&&o.block!==t.block);return[...new Set(L.map(o=>o.block))]}
+function taskAlleys(t){
+  const dir=t.dir||'SN',pat=t.pat||'all',nbs=orderIds(t),nb=vNbIds(t.block,nbs)[dir==='NS'?'lo':'hi'].length>0,key=t.block+'|'+dir+'|'+pat+'|'+(nb?1:0);if(alleyCache[key])return alleyCache[key];
+  const g=bg(t.block),out=[];
+  for(let j=1;j<g.n;j++){
+    if(pat==='p12'&&j%2===0)continue;if(pat==='p23'&&j%2===1)continue;
+    const k=dir==='NS'?g.n-j:j,sp=alleySpan(g,k);if(!sp||sp[1]-sp[0]<3)continue;
+    out.push({k,j,V:alleyV(g,k),a:sp[0],b:sp[1],rows:dir==='NS'?[k+1,k]:[k,k+1]});
+  }
+  /* the alley between this block's last row and the next block's first row is a pass too: give it to the block worked first */
+  if(nb&&!(pat==='p12'&&g.n%2===0)&&!(pat==='p23'&&g.n%2===1)){const k=dir==='NS'?0:g.n,Vb=dir==='NS'?g.vmin+.2:g.vmax-.2,es=edgeSpans({rings:g.R},dir==='NS'?g.vmin+.7:g.vmax-.7),sp=es.length?es.reduce((b,c)=>!b||c[1]-c[0]>b[1]-b[0]?c:b,null):null;
+    if(sp&&sp[1]-sp[0]>=3)out.push({k,j:g.n,V:Vb,a:sp[0],b:sp[1],rows:dir==='NS'?[1,0]:[g.n,g.n+1],edge:true})}
+  return alleyCache[key]=out;
+}
+/* blocks on the published order (same operation, unfinished) that a straight pass could run on into */
+function corridorOf(t){return[...new Set(pubTasks().filter(o=>o.id!==t.id&&o.block!==t.block&&o.operation===t.operation&&!isDone(o.id)).map(o=>o.block))]}
+function crossOf(g,id2){let c=g.cross[id2];if(!c){const R=FBY[id2].rings.map(r=>r.map(p=>toVT(g,p)));let lo=1e9,hi=-1e9,tlo=1e9,thi=-1e9;for(const r of R)for(const p of r){lo=Math.min(lo,p[0]);hi=Math.max(hi,p[0]);tlo=Math.min(tlo,p[1]);thi=Math.max(thi,p[1])}c=g.cross[id2]={R,lo,hi,tlo,thi}}return c}
+function extendLane(g,V,a,b,blocks){
+  const used=new Set();let ch=true,guard=0;
+  while(ch&&guard++<4){ch=false;
+    for(const id of blocks){if(used.has(id))continue;const c=crossOf(g,id);if(V<c.lo||V>c.hi)continue;
+      for(const sp of edgeSpans({rings:c.R},V)){
+        if(sp[0]>=b-1&&sp[0]-b<=CORR_GAP){b=sp[1];used.add(id);ch=true;break}
+        if(sp[1]<=a+1&&a-sp[1]<=CORR_GAP){a=sp[0];used.add(id);ch=true;break}
+      }}}
+  return{a,b,used}
+}
+function adjacentOnOrder(t){const g=bg(t.block),corr=corridorOf(t),out=new Set();if(!corr.length)return[];for(const L of taskAlleys(t)){for(const u of extendLane(g,L.V,L.a,L.b,corr).used)out.add(u)}return[...out]}
+/* blocks side by side (sharing a long side) = neighbours along north-south. hi = north (row numbers rise), lo = south */
+function vNeighbors(t){return vNbIds(t.block,corridorOf(t))}
+/* the block where work may begin: for N->S the north-most block of an unfinished side-by-side chain (S->N: the south-most) */
+function startTask(t){const p0=state.progress[t.id];if(p0&&(p0.started||p0.rows>0||p0.open))return t;let cur=t,guard=0;const side=(t.dir||'SN')==='NS'?'hi':'lo';
+  while(guard++<8){const nb=vNeighbors(cur)[side];let nt=null;for(const id of nb){nt=pubTasks().find(o=>o.block===id&&o.operation===cur.operation&&!isDone(o.id)&&(o.dir||'SN')===(cur.dir||'SN')&&!(state.progress[o.id]&&state.progress[o.id].rows>0));if(nt)break}if(!nt)break;cur=nt}return cur}
+function groupTasks(t){const seen=new Map([[t.id,t]]),q=[t];while(q.length){const c=q.pop(),nb=vNeighbors(c);for(const id of[...nb.hi,...nb.lo]){const o=pubTasks().find(x=>x.block===id&&x.operation===c.operation&&!isDone(x.id)&&(x.dir||'SN')===(c.dir||'SN'));if(o&&!seen.has(o.id)){seen.set(o.id,o);q.push(o)}}}return[...seen.values()]}
+function dirLines(t){
+  const st=startTask(t),ns=(t.dir||'SN')==='NS',sd=ns?'lo':'hi',mem=[st];let far=st,guard=0;
+  while(guard++<8){const nb=vNeighbors(far)[sd];let nx=null;for(const id of nb){nx=pubTasks().find(o=>o.block===id&&o.operation===st.operation&&!isDone(o.id)&&(o.dir||'SN')===(st.dir||'SN'));if(nx)break}if(!nx)break;far=nx;mem.push(far)}
+  const g=bg(st.block);let vlo=1e9,vhi=-1e9;const tw=[],te=[];
+  for(const m of mem){const gm=bg(m.block);for(const r of gm.R)for(const q of r){const v=toVT(g,q)[0];vlo=Math.min(vlo,v);vhi=Math.max(vhi,v)}
+    const L=taskAlleys({block:m.block,dir:'SN',pat:'all'}),med=a=>{a=a.slice().sort((x,y)=>x-y);return a[a.length>>1]};
+    const A=[],B=[];for(const l of L){A.push(toVT(g,scr(gm,l.V,l.a))[1]);B.push(toVT(g,scr(gm,l.V,l.b))[1])}
+    if(A.length){tw.push(med(A));te.push(med(B))}}
+  const inset=9,Tw=Math.max(...tw)+inset,Te=Math.min(...te)-inset,Va=ns?vhi:vlo,Vb=ns?vlo:vhi,out=[];
+  for(const [T,side] of[[Te,'E'],[Tw,'W']])out.push({a:scr(g,Va,T),b:scr(g,Vb,T),ns,side,id:st.id+'>'+mem[mem.length-1].id+side});
+  for(const d of out){const dx=d.b[0]-d.a[0],dy=d.b[1]-d.a[1];if(Math.abs(Math.atan2(dy,dx))>Math.PI/2)var ang=Math.PI-Math.abs(Math.atan2(dy,dx));else ang=Math.abs(Math.atan2(dy,dx));
+    if(ang<8*Math.PI/180){const ym=(d.a[1]+d.b[1])/2;d.a=[d.a[0],ym];d.b=[d.b[0],ym]}}
+  /* trim both ends to where the line really is inside the worked blocks (block edges are slightly slanted) */
+  const ids=new Set(mem.map(m=>m.block));
+  for(const d of out){const L=Math.hypot(d.b[0]-d.a[0],d.b[1]-d.a[1]),n=Math.ceil(L/.5);let i0=-1,i1=-1;
+    for(let i=0;i<=n;i++){const q=[d.a[0]+(d.b[0]-d.a[0])*i/n,d.a[1]+(d.b[1]-d.a[1])*i/n];if(ids.has(blockAt(q[0],q[1]))){if(i0<0)i0=i;i1=i}}
+    if(i0>=0&&i1>i0){const f=i=>[d.a[0]+(d.b[0]-d.a[0])*i/n,d.a[1]+(d.b[1]-d.a[1])*i/n],q0=f(Math.min(i1,i0+3)),q1=f(Math.max(i0,i1-3));d.a=q0;d.b=q1}}
+  return out
+}
+/* headland: the lane runs a few units past the block edge before the turn so every row is a real entrance and exit */
+function overshoot(g,V,T,s){for(const O of [5,3,1.5,.6]){const q=scr(g,V,T+s*O);if(!blockAt(q[0],q[1]))return O}return 0}
+/* Boustrophedon through the remaining rows. entry E = start at the east end (screen bottom) and travel west (up). */
+function buildRoute(t,entry,pr,corr,wrongEnd){
+  const g=bg(t.block),all=taskAlleys(t),rows=(pr&&pr.rows)||0;
+  let seq=all.slice(Math.min(rows,all.length));
+  if(wrongEnd&&rows===0&&!(pr&&pr.started))seq=seq.slice().reverse();
+  let sign=entry==='W'?1:-1;if(pr&&pr.lastSign&&rows>0)sign=-pr.lastSign;
+  const lanes=[];
+  seq.forEach((L,i)=>{
+    const ext=corr&&corr.length?extendLane(g,L.V,L.a,L.b,corr):{a:L.a,b:L.b};
+    let lo=ext.a,hi=ext.b,s=sign,from,to;
+    const resume=i===0&&pr&&pr.open&&pr.resumeT!=null;
+    if(resume){s=pr.open.side==='E'?-1:1;if(s<0)hi=Math.min(hi,pr.resumeT);else lo=Math.max(lo,pr.resumeT)}
+    const oLo=(resume&&s>0)?0:overshoot(g,L.V,lo,-1),oHi=(resume&&s<0)?0:overshoot(g,L.V,hi,1);
+    if(s>0){from=lo-oLo;to=hi+oHi}else{from=hi+oHi;to=lo-oLo}
+    if(Math.abs(to-from)<1.5)return;
+    lanes.push({k:L.k,V:L.V,from,to,sign:s});sign=-s;
+  });
+  const raw=[];lanes.forEach((L,i)=>{const st=scr(g,L.V,L.from),en=scr(g,L.V,L.to);if(i===0)raw.push(st);else raw.push(...samples(raw[raw.length-1],st,2.2));raw.push(...samples(st,en,2.2))});
+  const f=FBY[t.block];if(raw.length<2){raw.length=0;raw.push([f.cx,f.cy],[f.cx,f.cy+.01])}
+  const clean=[];for(const p of raw){const q=clean[clean.length-1];if(!q||Math.hypot(p[0]-q[0],p[1]-q[1])>0.05)clean.push(p)}
+  const cum=[0];for(let i=1;i<clean.length;i++)cum.push(cum[i-1]+Math.hypot(clean[i][0]-clean[i-1][0],clean[i][1]-clean[i-1][1]));
+  return{pts:clean,cum,total:cum[cum.length-1],lanes};
+}
+function getRoute(id,t,entry,pr,corr,wrongEnd){if(!t&&routeCache[id])return routeCache[id];const task=t||{block:id,dir:'SN',pat:'all'};const r=buildRoute(task,entry||'E',pr,corr,wrongEnd);if(!t)routeCache[id]=r;return r}
+function posAt(r,d){d=clamp(d,0,r.total);let lo=0,hi=r.cum.length-1;while(hi-lo>1){const m=(lo+hi)>>1;if(r.cum[m]<=d)lo=m;else hi=m}const a=r.pts[lo],b=r.pts[hi],span=r.cum[hi]-r.cum[lo]||1,t=(d-r.cum[lo])/span;return{p:[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t],dir:[b[0]-a[0],b[1]-a[1]]}}
+function nearestBoundary(f,src){let best=null;for(const ring of f.rings)for(let j=0;j<ring.length;j++){const a=ring[j],b=ring[(j+1)%ring.length],dx=b[0]-a[0],dy=b[1]-a[1];const u=clamp(((src[0]-a[0])*dx+(src[1]-a[1])*dy)/(dx*dx+dy*dy||1),0,1);const p=[a[0]+u*dx,a[1]+u*dy],d=Math.hypot(p[0]-src[0],p[1]-src[1]);if(!best||d<best.d)best={p,d}}return best}
+
+/* =====================================================================
+   STATE
+   ===================================================================== */
+const state={device:'auto',ranch:'Napanook',tractor:'Tractor 1',operator:'Operador 1',tasks:[],published:null,progress:{},history:{},day:1,alerts:[],lang:'en',seq:1,
+  opKey:'mow',dirKey:'SN',patKey:'all',selected:[],notes:'',tab:'sup',msg:{text:'',cls:''},pubMsg:''};
+const sim={covVer:0,histVer:0,inBlock:null,lastIn:null,lastExit:null,lastBlock:null,justDone:null,doneTask:null,endWarn:null,approach:null,demoWrongEnd:false,lastPos:null,status:'idle',playing:false,mode:'route',speed:1,route:null,taskId:null,d:0,pos:null,heading:0,trail:[],saved:null,transit:null,detour:null,wrong:null,alertId:null};
+function save(){try{const s={ranch:state.ranch,tractor:state.tractor,operator:state.operator,tasks:state.tasks,published:state.published,progress:state.progress,history:state.history,day:state.day,alerts:state.alerts,lang:state.lang,seq:state.seq,opKey:state.opKey,dirKey:state.dirKey,patKey:state.patKey,device:state.device,resume:state.resume};localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}}
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&Array.isArray(s.tasks)){Object.assign(state,s);state.alerts=(state.alerts||[]).slice(-20)}}catch(e){}}
+const orderSnapshot=()=>JSON.stringify({ranch:state.ranch,tractor:state.tractor,operator:state.operator,tasks:state.tasks.map(t=>[t.id,t.block,t.operation,t.notes,t.pass,t.dir||'SN',t.pat||'all'])});
+const publishedSnapshot=()=>state.published?state.published.snap:null;
+const isDirty=()=>!!state.tasks.length&&(!state.published||publishedSnapshot()!==orderSnapshot());
+const isLive=()=>['active','blockdone','alert'].includes(sim.status);
+const pubTasks=()=>state.published?state.published.tasks:[];
+const authSet=()=>new Set(pubTasks().map(t=>t.block));
+const isDone=id=>!!(state.progress[id]&&state.progress[id].done);
+const currentTask=()=>{const f=pubTasks().find(t=>!isDone(t.id));return f?startTask(f):null};
+const nextTask=()=>{const c=currentTask();if(!c)return null;const l=pubTasks();return l.slice(l.indexOf(c)+1).find(t=>!isDone(t.id))||null};
+function taskStat(t){const L=taskAlleys(t),pr=state.progress[t.id],dn=isDone(t.id),rows=dn?L.length:Math.min(L.length,(pr&&pr.rows)||0);return{total:L.length,done:rows,frac:L.length?rows/L.length:1}}
+function taskPct(t){if(!t)return 0;if(isDone(t.id))return 100;return Math.round(100*taskStat(t).frac)}
+function fillCoverage(t){const pr=state.progress[t.id]=state.progress[t.id]||{};pr.rows=taskAlleys(t).length;pr.done=true;pr.open=null;sim.covVer++}
+/* task the operator is physically working on: the block under the tractor if it is on the order, else the next unfinished task */
+function focusTask(){if(sim.pos&&isLive()&&(sim.mode==='route'||sim.mode==='gps')){const b=blockAt(sim.pos[0],sim.pos[1]);if(b){const t=pubTasks().find(o=>o.block===b&&!isDone(o.id));if(t)return t}}return currentTask()}
+const nextAfter=t=>{if(!t)return null;const l=pubTasks(),c=l.slice(l.indexOf(t)+1).find(o=>!isDone(o.id))||l.find(o=>o.id!==t.id&&!isDone(o.id))||null;return c?startTask(c):null};
+/* Progress = entrances and exits. A row is complete when the tractor enters one end of the block and leaves by the opposite end.
+   Which row it was comes from the count, so the line is drawn from the row geometry, never from raw GPS. */
+const taskFor=b=>pubTasks().find(o=>o.block===b&&!isDone(o.id))||null;
+function endOf(g,p){const [V,T]=toVT(g,p),sp=edgeSpans({rings:g.R},V);let mid=g.tmid;if(sp.length){const c=sp.reduce((b,x)=>!b||x[1]-x[0]>b[1]-b[0]?x:b,null);mid=(c[0]+c[1])/2}return{side:T>mid?'E':'W',V,T}}
+function onEnter(b,p){
+  const t=taskFor(b);if(!t)return;const g=bg(b),pr=state.progress[t.id]=state.progress[t.id]||{},e=endOf(g,p);
+  pr.open={side:e.side};pr.resumeT=null;logEv('enter',{block:b,side:e.side});
+  const thru=sim.lastExit&&sim.lastExit.block!==b&&Math.hypot(sim.lastExit.pos[0]-p[0],sim.lastExit.pos[1]-p[1])<=CORR_GAP+4;
+  if(!pr.started){pr.started=true;
+    if(!thru&&!(pr.rows>0)){const south=(t.dir||'SN')==='SN',st0=currentTask(),ref=(st0&&zoneOf(st0).includes(b))?bg(st0.block):g,vmid=(ref.vmin+ref.vmax)/2,Vp=toVT(ref,p)[0];
+      if(south?Vp>vmid:Vp<vmid)sim.endWarn={block:b,task:t.id,expected:south?'S':'N',p0:p.slice()}}}
+}
+function onExit(b,pPrev){
+  sim.lastExit={block:b,pos:pPrev.slice()};
+  const t=taskFor(b);if(!t)return;const pr=state.progress[t.id];if(!pr||!pr.open)return;
+  const g=bg(b),e=endOf(g,pPrev);
+  logEv('exit',{block:b,from:pr.open.side,to:e.side,counted:e.side!==pr.open.side,rows:(pr.rows||0)+(e.side!==pr.open.side?1:0)});
+  if(e.side!==pr.open.side){pr.rows=(pr.rows||0)+1;pr.lastSign=pr.open.side==='E'?-1:1;sim.covVer++;if(pr.rows>=taskAlleys(t).length){pr.done=true;sim.justDone=t.id}}
+  pr.open=null;
+}
+function track(p){const b=blockAt(p[0],p[1]);if(b&&pubTasks().some(t=>t.block===b))sim.lastBlock=b;if(b!==sim.inBlock){if(sim.inBlock)onExit(sim.inBlock,sim.lastIn||p);if(b)onEnter(b,p);sim.inBlock=b}sim.lastIn=p}
+const tn=(k,L)=>{const o=opByKey(k);return (L||state.lang)==='es'?o.es:o.en};
+
+/* =====================================================================
+   MAP VIEW (satellite tiles + block polygons + trails + tractor marker)
+   ===================================================================== */
+const TILE_URL=(z,x,y)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+const NATIVE_PX_PER_UNIT=1/Math.hypot(TILE_REF.a,TILE_REF.b);
+function tileMatrix(z,X,Y){const k=Math.pow(2,z-17),fx=X/k-TILE_REF.x,fy=Y/k-TILE_REF.y;return[TILE_REF.a/k,TILE_REF.b/k,TILE_REF.c/k,TILE_REF.d/k,TILE_REF.e+fx*256*TILE_REF.a+fy*256*TILE_REF.c,TILE_REF.f+fx*256*TILE_REF.b+fy*256*TILE_REF.d]}
+function screenToTile(z,sx,sy){const R=TILE_REF,det=R.a*R.d-R.b*R.c,dx=sx-R.e,dy=sy-R.f,px=(R.d*dx-R.c*dy)/det,py=(-R.b*dx+R.a*dy)/det,k=Math.pow(2,z-17);return[(R.x+px/256)*k,(R.y+py/256)*k]}
+let tileLoads=0,tileErrors=0;
+function probeImagery(){const im=new Image();im.onload=()=>{tileLoads=Math.max(tileLoads,1);document.body.classList.remove('img-offline')};im.onerror=()=>{if(tileLoads===0)document.body.classList.add('img-offline')};im.src=TILE_URL(17,TILE_REF.x,TILE_REF.y)}
+function noteTile(ok){if(ok){tileLoads++;if(tileLoads===1)document.body.classList.remove('img-offline')}else{tileErrors++;if(tileLoads===0&&tileErrors>=6)document.body.classList.add('img-offline')}}
+
+class MapView{
+  constructor(wrap,svg,kind){
+    this.wrap=wrap;this.svg=svg;this.kind=kind;this.cam={cx:(RANCH_BB[0]+RANCH_BB[2])/2,cy:(RANCH_BB[1]+RANCH_BB[3])/2,s:1};this.px={w:0,h:0};this.fitted=true;this.follow=kind==='op';
+    this.tiles=new Map();this.pending=false;this.build();this.bind();
+    new ResizeObserver(()=>this.resize()).observe(wrap);
+  }
+  el(n,a){const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e}
+  build(){
+    const s=this.svg;s.replaceChildren();
+    this.bg=this.el('rect',{fill:'#26302b'});s.append(this.bg);
+    this.gT=this.el('g',{});this.gB=this.el('g',{});this.gTr=this.el('g',{});this.gG=this.el('g',{});this.gL=this.el('g',{});this.gM=this.el('g',{});
+    s.append(this.gT,this.gB,this.gTr,this.gG,this.gL,this.gM);
+    this.paths={};this.labels={};
+    for(const f of FEATURES){
+      const d=f.rings.map(r=>r.map((p,i)=>(i?'L':'M')+p[0]+','+p[1]).join('')+'Z').join('');
+      const p=this.el('path',{d,class:'blk'});p.dataset.id=f.id;this.gB.append(p);this.paths[f.id]=p;
+      const t=this.el('text',{x:f.cx,y:f.cy,class:'lbl'});t.textContent=f.id;this.gL.append(t);this.labels[f.id]=t;
+    }
+    this.prev=this.el('path',{class:'trail-prev',d:''});this.cur=this.el('path',{class:'trail-cur',d:''});this.gTr.append(this.prev,this.cur);
+    this.gHalo=this.el('path',{class:'g-halo',d:''});this.gLine=this.el('path',{class:'g-flash',d:''});this.gArrow=this.el('path',{class:'g-arrow',d:''});this.gLeft=this.el('circle',{class:'g-left',r:7,cx:0,cy:0});
+    this.gDir=this.el('g',{class:'dirg'});this.gDir.style.display='none';
+    this.dLn=this.el('path',{class:'dir-ln',d:''});this.dFl=this.el('path',{class:'dir-flow',d:''});this.dHd=this.el('path',{class:'dir-hd',d:''});
+    this.dA=this.el('text',{class:'dir-end'});this.dB=this.el('text',{class:'dir-end'});this.gDir.append(this.dLn,this.dFl,this.dHd,this.dA,this.dB);this.gTr.append(this.gDir);
+    this.gG.append(this.gHalo,this.gLine,this.gArrow,this.gLeft);this.gHalo.style.display=this.gLine.style.display=this.gArrow.style.display=this.gLeft.style.display='none';
+    const m=this.el('g',{});m.style.display='none';
+    const k=this.kind==='op'?1:.75;
+    m.innerHTML=`<g transform="scale(${k})"><circle r="24" fill="rgba(42,125,225,.16)" stroke="rgba(42,125,225,.55)" stroke-width="1.5"/><g class="rot"><path d="M0,-33 L12,-8 L0,-13 L-12,-8Z" fill="#2a7de1" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></g><circle r="11" fill="#fff"/><circle r="8" fill="#2a7de1"/></g>`;
+    this.gM.append(m);this.marker=m;this.rot=m.querySelector('.rot');
+  }
+  resize(){const r=this.wrap.getBoundingClientRect();if(r.width<10||r.height<10)return;const first=!this.px.w;this.px={w:r.width,h:r.height};const keep=this.fitted,cs=this.cam.s,old=this.fitS,ocx=this.cam.cx,ocy=this.cam.cy;this.fit();if(!first&&!keep&&old){this.cam.s=clamp(cs*(this.fitS/old),0.06,this.maxS());this.cam.cx=ocx;this.cam.cy=ocy;this.fitted=false;this.apply()}}
+  fit(){const pad=this.kind==='op'?30:44,w=this.px.w-2*pad,h=this.px.h-2*pad;if(w<50||h<50)return;this.cam.s=this.fitS=Math.max((RANCH_BB[2]-RANCH_BB[0])/w,(RANCH_BB[3]-RANCH_BB[1])/h);this.cam.cx=(RANCH_BB[0]+RANCH_BB[2])/2;this.cam.cy=(RANCH_BB[1]+RANCH_BB[3])/2;this.fitted=true;this.apply()}
+  maxS(){return Math.max(1.6,(this.fitS||1)*1.9)}
+  zoomBy(factor,ax,ay){const c=this.cam;const ns=clamp(c.s/factor,0.06,this.maxS());if(ax==null){c.s=ns}else{c.cx=ax-(ax-c.cx)*ns/c.s;c.cy=ay-(ay-c.cy)*ns/c.s;c.s=ns}this.fitted=false;this.apply()}
+  setScale(s){this.cam.s=s;this.fitted=false;this.apply()}
+  center(x,y){this.cam.cx=x;this.cam.cy=y;this.apply()}
+  apply(){
+    const c=this.cam,w=this.px.w*c.s,h=this.px.h*c.s;
+    c.cx=clamp(c.cx,RANCH_BB[0]-160,RANCH_BB[2]+160);c.cy=clamp(c.cy,RANCH_BB[1]-160,RANCH_BB[3]+160);
+    this.vb=[c.cx-w/2,c.cy-h/2,w,h];this.svg.setAttribute('viewBox',this.vb.map(v=>+v.toFixed(3)).join(' '));
+    this.bg.setAttribute('x',this.vb[0]);this.bg.setAttribute('y',this.vb[1]);this.bg.setAttribute('width',w);this.bg.setAttribute('height',h);
+    if(this.dirD)this.drawDir();const fs=(this.kind==='op'?14:12)*c.s;for(const id in this.labels){const l=this.labels[id],bw=FBY[id].bb[2]-FBY[id].bb[0],f2=Math.max(Math.min(fs,bw/(0.62*id.length+.5)),7.5*c.s);l.setAttribute('font-size',f2);l.style.strokeWidth=(0.26*f2)+'px'}
+    if(this.mpos)this.placeMarker();
+    if(!this.pending){this.pending=true;requestAnimationFrame(()=>{this.pending=false;this.updateTiles()})}
+  }
+  updateTiles(){
+    if(!this.vb||!this.px.w)return;const [vx,vy,vw,vh]=this.vb,mg=Math.min(vw,vh)*.12,x0=vx-mg,y0=vy-mg,x1=vx+vw+mg,y1=vy+vh+mg;
+    const ppu=1/this.cam.s;let z=17;while(z<19&&ppu>NATIVE_PX_PER_UNIT*Math.pow(2,z-17)*1.1)z++;
+    const levels=z>17?[17,z]:[17];const need=new Map();
+    for(const L of levels){
+      const cs=[[x0,y0],[x1,y0],[x0,y1],[x1,y1]].map(p=>screenToTile(L,p[0],p[1]));
+      const tx0=Math.floor(Math.min(...cs.map(c=>c[0]))),tx1=Math.floor(Math.max(...cs.map(c=>c[0]))),ty0=Math.floor(Math.min(...cs.map(c=>c[1]))),ty1=Math.floor(Math.max(...cs.map(c=>c[1])));
+      for(let X=tx0;X<=tx1;X++)for(let Y=ty0;Y<=ty1;Y++){
+        const m=tileMatrix(L,X,Y),sz=256;const xs=[m[4],m[4]+m[0]*sz,m[4]+m[2]*sz,m[4]+m[0]*sz+m[2]*sz],ys=[m[5],m[5]+m[1]*sz,m[5]+m[3]*sz,m[5]+m[1]*sz+m[3]*sz];
+        if(Math.max(...xs)<x0||Math.min(...xs)>x1||Math.max(...ys)<y0||Math.min(...ys)>y1)continue;
+        need.set(L+'/'+X+'/'+Y,[L,X,Y,m]);
+      }
+    }
+    for(const [k,e] of this.tiles){if(!need.has(k)){e.remove();this.tiles.delete(k)}}
+    for(const [k,[L,X,Y,m]] of need){if(this.tiles.has(k))continue;
+      const im=this.el('image',{width:256.7,height:256.7,preserveAspectRatio:'none',transform:`matrix(${m.join(' ')})`});
+      im.setAttribute('href',TILE_URL(L,X,Y));im.setAttributeNS('http://www.w3.org/1999/xlink','xlink:href',TILE_URL(L,X,Y));
+      im.addEventListener('load',()=>noteTile(true));im.addEventListener('error',()=>noteTile(false));
+      // level 17 sits below detail tiles
+      if(L===17)this.gT.insertBefore(im,this.gT.firstChild);else this.gT.append(im);
+      this.tiles.set(k,im);
+    }
+  }
+  bind(){
+    const svg=this.svg,ptrs=new Map();let drag=null,pinch=null;
+    const toUnits=e=>{const r=svg.getBoundingClientRect();return[this.vb[0]+(e.clientX-r.left)/r.width*this.vb[2],this.vb[1]+(e.clientY-r.top)/r.height*this.vb[3]]};
+    svg.addEventListener('wheel',e=>{e.preventDefault();const [x,y]=this.kind==='op'&&this.follow?[this.cam.cx,this.cam.cy]:toUnits(e);this.zoomBy(e.deltaY<0?1.25:.8,x,y)},{passive:false});
+    svg.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,[e.clientX,e.clientY]);svg.setPointerCapture&&svg.setPointerCapture(e.pointerId);
+      if(ptrs.size===1)drag={x:e.clientX,y:e.clientY,cx:this.cam.cx,cy:this.cam.cy,moved:false,target:e.target};
+      else if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1]),s:this.cam.s};drag=null}});
+    svg.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;ptrs.set(e.pointerId,[e.clientX,e.clientY]);
+      if(pinch&&ptrs.size>=2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]);this.cam.s=clamp(pinch.s*pinch.d/Math.max(d,1),0.06,this.maxS());this.fitted=false;this.apply();return}
+      if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!drag.moved&&Math.hypot(dx,dy)>5){drag.moved=true;if(this.kind==='op'&&this.follow)this.setFollow(false)}
+      if(drag.moved){const r=svg.getBoundingClientRect();this.cam.cx=drag.cx-dx*this.vb[2]/r.width;this.cam.cy=drag.cy-dy*this.vb[3]/r.height;this.fitted=false;this.apply()}});
+    const end=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;if(drag&&!drag.moved&&ptrs.size===0&&this.onBlockClick){const id=drag.target&&drag.target.dataset&&drag.target.dataset.id;if(id)this.onBlockClick(id)}if(ptrs.size===0)drag=null};
+    svg.addEventListener('pointerup',end);svg.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);drag=null;pinch=null});
+  }
+  setFollow(v){this.follow=v;const b=$('btnFollow');if(b&&this.kind==='op')b.classList.toggle('on',v);if(v&&this.mpos)this.center(this.mpos[0],this.mpos[1])}
+  setMarker(pos,heading){if(!pos){this.marker.style.display='none';this.mpos=null;return}this.mpos=pos;this.mhead=heading;this.marker.style.display='';this.placeMarker()}
+  placeMarker(){const s=this.cam.s;this.marker.setAttribute('transform',`translate(${this.mpos[0]},${this.mpos[1]}) scale(${s})`);this.rot.setAttribute('transform',`rotate(${this.mhead||0})`)}
+  setGuide(g){const v=g?'':'none';this.gHalo.style.display=this.gLine.style.display=this.gArrow.style.display=v;if(!g)return;
+    const d=`M${g.x},${g.from} L${g.x},${g.to}`;this.gHalo.setAttribute('d',d);this.gLine.setAttribute('d',d);
+    this.gArrow.setAttribute('d',`M${g.x},${g.from+g.sign*13} L${g.x-7},${g.from} L${g.x+7},${g.from}Z`)}
+  setDir(list){
+    if(!list||!list.length){this.gDir.style.display='none';this.dirD=null;this.dirKey='';return}
+    const key=list.map(d=>d.id+d.ns).join('|');
+    if(key!==this.dirKey){this.dirKey=key;this.gDir.replaceChildren();this.dirEls=list.map(d=>{const e={ln:this.el('path',{class:'dir-ln'}),fl:this.el('path',{class:'dir-flow'}),hd:this.el('path',{class:'dir-hd'}),A:this.el('text',{class:'dir-end'}),B:this.el('text',{class:'dir-end'})};this.gDir.append(e.ln,e.fl,e.hd,e.A,e.B);return e})}
+    this.dirD=list;this.gDir.style.display='';this.drawDir()}
+  drawDir(){
+    const list=this.dirD;if(!list)return;const k=this.cam.s;
+    list.forEach((d,i)=>{const e=this.dirEls[i],[a,b]=[d.a,d.b];let dx=b[0]-a[0],dy=b[1]-a[1];const L=Math.hypot(dx,dy)||1;dx/=L;dy/=L;
+      /* sizes shrink with the blocks so the arrow and both letters always stay inside the worked blocks */
+      const sc=Math.min(k,L/70),hs=4.2*sc,fs=10*sc,pad=fs*2.1,nx=-dy,ny=dx,
+        p0=[a[0]+dx*pad,a[1]+dy*pad],p1=[b[0]-dx*pad,b[1]-dy*pad],path='M'+p0[0]+','+p0[1]+'L'+p1[0]+','+p1[1];
+      e.ln.setAttribute('d',path);e.fl.setAttribute('d',path);
+      e.hd.setAttribute('d','M'+(p1[0]-dx*hs*1.6+nx*hs)+','+(p1[1]-dy*hs*1.6+ny*hs)+'L'+(p1[0]+dx*hs*.4)+','+(p1[1]+dy*hs*.4)+'L'+(p1[0]-dx*hs*1.6-nx*hs)+','+(p1[1]-dy*hs*1.6-ny*hs));
+      const cap=d.ns?['N','S']:['S','N'];
+      for(const [t,c,sg] of[[e.A,cap[0],1],[e.B,cap[1],-1]]){const base=sg>0?a:b;t.textContent=c;t.setAttribute('font-size',fs);t.setAttribute('x',base[0]+sg*dx*fs*.9);t.setAttribute('y',base[1]+sg*dy*fs*.9+fs*.35);t.style.strokeWidth=(.26*fs)+'px'}})
+  }
+  setLeft(p){if(!p){this.gLeft.style.display='none';return}this.gLeft.style.display='';this.gLeft.setAttribute('cx',p[0]);this.gLeft.setAttribute('cy',p[1])}
+  setTrails(prevList,curPts){
+    this.prev.setAttribute('d',prevList.map(t=>t.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+','+p[1].toFixed(1)).join('')).join(''));
+    this.cur.setAttribute('d',curPts.length>1?curPts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(''):'');
+  }
+  setClasses(fn){for(const id in this.paths){const c=fn(id);const p=this.paths[id];const n='blk'+(c?' '+c:'');if(p.getAttribute('class')!==n)p.setAttribute('class',n)}}
+}
+const supMap=new MapView($('supMapWrap'),$('supSvg'),'sup');
+const opMap=new MapView($('opMapWrap'),$('opSvg'),'op');
+
+/* =====================================================================
+   SIMULATION
+   ===================================================================== */
+function curAlert(){return sim.alertId?state.alerts.find(a=>a.id===sim.alertId):null}
+function setHeading(dir,snap){if(!dir||(Math.abs(dir[0])<1e-6&&Math.abs(dir[1])<1e-6))return;const t=Math.atan2(dir[0],-dir[1])*180/Math.PI;if(snap){sim.heading=t;return}let dl=((t-sim.heading+540)%360)-180;sim.heading+=dl*0.35}
+function pushTrail(p){const l=sim.trail[sim.trail.length-1];if(!l||Math.hypot(p[0]-l[0],p[1]-l[1])>1.0)sim.trail.push([p[0],p[1]])}
+function simplify(pts){const o=[];for(const p of pts){const n=o.length;if(n>=2){const a=o[n-2],b=o[n-1],c1=(b[0]-a[0])*(p[1]-b[1])-(b[1]-a[1])*(p[0]-b[0]);if(Math.abs(c1)<.02){o[n-1]=p;continue}}o.push(p)}return o}
+function flushTrail(){if(sim.taskId&&sim.trail.length>1){(state.history[sim.taskId]=state.history[sim.taskId]||[]).push(simplify(sim.trail.map(p=>[+p[0].toFixed(1),+p[1].toFixed(1)])))}sim.trail=[];sim.histVer++}
+/* where the tractor really starts: the block at the far end of a side-by-side group, and (demo) a slow drive along the headland to the wrong end */
+function headlandPath(t,lg,lb,a,b){
+  const g=bg(t.block),out=lg.sign<0?1:-1,Tend=lg.sign<0?Math.max(lg.from,lb.from):Math.min(lg.from,lb.from);
+  const build=(T)=>{const w=[a,scr(g,lg.V,T),scr(g,lb.V,T),b],raw=[a];for(let i=1;i<w.length;i++)raw.push(...samples(w[i-1],w[i],2));return raw};
+  const free=raw=>raw.every((q,i)=>i<1||!blockAt(q[0],q[1]));
+  let raw=null;for(let d=0;d<=90&&!raw;d+=.5){const r=build(Tend+out*d);if(free(r))raw=r}
+  if(!raw)raw=build(Tend+out*3);
+  const cum=[0];for(let i=1;i<raw.length;i++)cum.push(cum[i-1]+Math.hypot(raw[i][0]-raw[i-1][0],raw[i][1]-raw[i-1][1]));
+  return{pts:raw,cum,total:cum[cum.length-1],d:0}
+}
+function planStart(t){
+  const st=startTask(t),pr=state.progress[st.id],fresh=!(pr&&(pr.started||pr.rows>0)),entry=(pr&&pr.entry)||'E',corr=corridorOf(st);
+  const good=getRoute(st.block,st,entry,pr,corr,false),a=posAt(good,0).p;
+  if(sim.demoWrongEnd&&fresh&&good.lanes.length>1){const bad=getRoute(st.block,st,entry,pr,corr,true),b=posAt(bad,0).p;return{task:st,route:bad,start:a,approach:headlandPath(st,good.lanes[0],bad.lanes[0],a,b)}}
+  return{task:st,route:good,start:a,approach:null}
+}
+function simRoute(t){const pr=state.progress[t.id];return getRoute(t.block,t,(pr&&pr.entry)||'E',pr,corridorOf(t),sim.demoWrongEnd)}
+/* finish the pass that was left open yesterday: carry on in the same direction to the end of the row, then go to the usual start */
+function resumeLeg(){
+  const R=state.resume;if(!R)return null;const g=bg(R.block),dir=R.side==='E'?[-g.ux,-g.uy]:[g.ux,g.uy],pts=[R.pos.slice()];let q=R.pos.slice(),left=false,extra=0;
+  for(let i=0;i<500;i++){q=[q[0]+dir[0],q[1]+dir[1]];const b=blockAt(q[0],q[1]);if(b&&!pubTasks().some(t=>t.block===b)&&!left)break;pts.push(q.slice());if(!b){left=true;extra++;if(extra>=5)break}}
+  if(pts.length<2)return null;const cum=[0];for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));
+  return{pts,cum,total:cum[cum.length-1],d:0,leg:true,block:R.block}}
+function startWorkday(){
+  if(!state.published||isLive()||sim.status==='complete')return false;
+  if(GPS.on)return gpsStartWorkday();
+  const t=currentTask();if(!t){sim.status='complete';render();return false}
+  const leg=resumeLeg();let P=planStart(t);sim.route=P.route;sim.taskId=P.task.id;sim.d=0;sim.approach=leg||P.approach;
+  const a=posAt(sim.route,0);sim.pos=(leg?leg.pts[0]:P.start).slice();const A0=sim.approach;setHeading(A0?[A0.pts[1][0]-A0.pts[0][0],A0.pts[1][1]-A0.pts[0][1]]:a.dir,true);sim.trail=[sim.pos.slice()];
+  sim.mode=A0?'approach':'route';state.resume=leg?state.resume:null;sim.wrong=null;sim.alertId=null;sim.saved=null;sim.detour=null;sim.transit=null;sim.endWarn=null;sim.lastExit=null;sim.lastBlock=null;sim.justDone=null;sim.inBlock=blockAt(sim.pos[0],sim.pos[1]);sim.lastIn=sim.pos.slice();
+  if(!sim.route.lanes.length)fillCoverage(P.task);
+  sim.status=sim.route.lanes.length?'active':'blockdone';sim.playing=sim.status==='active';
+  opMap.setScale(CONFIG.workScale);opMap.setFollow(true);
+  render();save();return true;
+}
+function endWorkday(){
+  if(!isLive())return;
+  if(GPS.on){logEv('endWorkday',{});gpsFlush()}
+  if(sim.status==='alert'){const a=curAlert();if(a&&!a.ack){a.ack=true}}
+  if(sim.mode==='detour'&&sim.saved){sim.pos=sim.saved.pos;sim.trail=sim.saved.trail}
+  // leaving mid-row: remember where, so the work resumes from there; leaving between rows: nothing is open
+  for(const k in state.progress){const q=state.progress[k];if(q&&q.open&&!(sim.inBlock&&taskFor(sim.inBlock)&&taskFor(sim.inBlock).id===k))q.open=null}
+  state.resume=null;if(sim.inBlock&&sim.pos){const t=taskFor(sim.inBlock),q=t&&state.progress[t.id];if(q&&q.open){q.resumeT=null;state.resume={block:sim.inBlock,side:q.open.side,pos:sim.pos.slice()}}}
+  flushTrail();sim.lastPos=sim.pos?sim.pos.slice():null;sim.status='idle';sim.playing=false;sim.mode='route';sim.wrong=null;sim.alertId=null;sim.detour=null;sim.transit=null;sim.saved=null;
+  state.day++;render();save();
+}
+function completeCurrent(){const t=currentTask();if(!t)return;
+  if(sim.taskId===t.id&&sim.route){ // presenter shortcut: draw the rows still to do, then close the block
+    const R=sim.route,rest=[posAt(R,sim.d).p];for(let i=0;i<R.pts.length;i++)if(R.cum[i]>sim.d)rest.push(R.pts[i]);sim.trail.push(...rest)}
+  fillCoverage(t);if(sim.taskId===t.id)flushTrail()}
+function nextBlock(){
+  if(!['active','blockdone'].includes(sim.status)||sim.mode==='detour')return false;
+  if(sim.mode==='transit')finishTransit();
+  if(sim.status==='active')completeCurrent(); // presenter shortcut: skip the rest of this block
+  else flushTrail();
+  const nt=currentTask();
+  if(!nt){sim.status='complete';sim.playing=false;sim.mode='route';render();save();return true}
+  const P=planStart(nt);sim.route=P.route;sim.taskId=P.task.id;sim.d=0;sim.approach=P.approach;if(!P.route.lanes.length)fillCoverage(P.task);
+  const to=P.start;sim.transit={from:sim.pos.slice(),to,t:0,dur:Math.max(.7,Math.hypot(to[0]-sim.pos[0],to[1]-sim.pos[1])/CONFIG.transitSpeed)};
+  sim.mode='transit';sim.status='active';sim.playing=true;sim.wrong=null;sim.trail=[];sim.inBlock=null;sim.lastExit=null;sim.lastBlock=null;sim.justDone=null;sim.endWarn=null;render();save();return true;
+}
+function finishTransit(){const A=sim.approach,a=posAt(sim.route,sim.d),p0=A?A.pts[0]:a.p;sim.pos=p0.slice();setHeading(A?[A.pts[1][0]-p0[0],A.pts[1][1]-p0[1]]:a.dir,true);sim.trail=[p0.slice()];sim.mode=A?'approach':'route';if(A)A.d=0;sim.transit=null;sim.inBlock=blockAt(p0[0],p0[1]);sim.lastIn=p0.slice()}
+function wrongBlockTest(){
+  if(!['active','blockdone'].includes(sim.status)||sim.mode==='detour')return false;
+  if(sim.mode==='transit')finishTransit();
+  const auth=authSet(),cands=FEATURES.filter(f=>!auth.has(f.id));if(!cands.length)return false;
+  const src=sim.pos;let best=null;
+  for(const f of cands){const nb=nearestBoundary(f,src);if(!best||nb.d<best.d)best={f,...nb}}
+  // aim just past the real boundary of the nearest unauthorized polygon
+  let dest=null;const c=[best.f.cx,best.f.cy];
+  for(const frac of [.04,.08,.12,.2,.3,.45,.6,1]){let q=[best.p[0]+(c[0]-best.p[0])*frac,best.p[1]+(c[1]-best.p[1])*frac];
+    const dir=[q[0]-best.p[0],q[1]-best.p[1]],L=Math.hypot(dir[0],dir[1])||1;
+    // ensure we are at least 4 units inside along the inward direction
+    if(frac<1&&L<4){q=[best.p[0]+dir[0]/L*4,best.p[1]+dir[1]/L*4]}
+    if(blockAt(q[0],q[1])===best.f.id){dest=q;break}}
+  if(!dest)dest=c;
+  sim.saved={pos:sim.pos.slice(),heading:sim.heading,trail:sim.trail.map(p=>p.slice()),wasDone:sim.status==='blockdone',d:sim.d};
+  sim.detour={from:sim.pos.slice(),to:dest,t:0,dist:Math.hypot(dest[0]-src[0],dest[1]-src[1]),target:best.f.id};
+  sim.mode='detour';sim.status='active';sim.playing=true;sim.wrong=null;render();return true;
+}
+function triggerAlert(blockId,kind,extra){
+  const t=currentTask(),a={id:'a'+(state.seq++),time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}),tractor:state.published.tractor,operator:state.published.operator,block:blockId,authorized:[...authSet()],ack:false,planned:t?t.block:null,kind:kind||'block',...(extra||{})};
+  logEv('alert',{block:blockId,kind:a.kind});state.alerts.push(a);if(state.alerts.length>20)state.alerts.shift();sim.alertId=a.id;sim.status='alert';sim.playing=false;sim.wrong=null;
+  render();save();
+}
+function ackAlert(){
+  const a=curAlert();if(a)a.ack=true;
+  if(a&&a.kind==='end'){ // sent to the correct end: forget the bad entry and relocate to the real start
+    const t=pubTasks().find(o=>o.id===a.taskId);
+    if(t){const pr=state.progress[a.taskId]=state.progress[a.taskId]||{};pr.started=false;pr.open=null;pr.rows=0;pr.resumeT=null;sim.demoWrongEnd=false;
+      const P=planStart(t);sim.route=P.route;sim.taskId=P.task.id;sim.d=0;sim.approach=null;const to=P.start;
+      sim.transit={from:sim.pos.slice(),to,t:0,dur:Math.max(.7,Math.hypot(to[0]-sim.pos[0],to[1]-sim.pos[1])/CONFIG.transitSpeed)};
+      sim.mode='transit';sim.status='active';sim.playing=true;sim.trail=[];sim.inBlock=null;sim.lastExit=null;sim.lastBlock=null;sim.justDone=null;sim.endWarn=null;sim.alertId=null;render();save();return}
+  }
+  if(sim.saved){sim.pos=sim.saved.pos;sim.heading=sim.saved.heading;sim.trail=sim.saved.trail;sim.status=sim.saved.wasDone?'blockdone':'active'}else sim.status='active';
+  sim.mode='route';sim.detour=null;sim.saved=null;sim.playing=false;sim.wrong=null;sim.alertId=null;sim.inBlock=blockAt(sim.pos[0],sim.pos[1]);sim.lastIn=sim.pos.slice();render();save();
+}
+function togglePlay(){if(sim.status==='blockdone'&&sim.mode==='route'&&sim.route&&sim.d<sim.route.total-1){sim.status='active';sim.playing=true;render();return}if(sim.status!=='active')return;if(sim.mode==='detour'&&!sim.playing){sim.playing=true}else sim.playing=!sim.playing;render()}
+function resetSim(){sim.covVer++;sim.histVer++;sim.lastPos=null;sim.inBlock=null;sim.lastExit=null;sim.lastBlock=null;sim.justDone=null;sim.endWarn=null;state.resume=null;state.progress={};state.history={};state.alerts=[];state.day=1;sim.status='idle';sim.playing=false;sim.mode='route';sim.trail=[];sim.pos=null;sim.wrong=null;sim.alertId=null;sim.saved=null;sim.detour=null;sim.transit=null;sim.taskId=null;opMap.fit();opMap.setFollow(true);render();save()}
+function tick(dt){
+  if(sim.mode==='gps')return; // live GPS: driven by real fixes, not the simulator
+  if(sim.status!=='active'||!sim.playing)return;
+  const mul=sim.speed;
+  if(sim.mode==='route'){
+    const R=sim.route;let rem=CONFIG.baseSpeed*mul*dt;
+    while(rem>1e-6&&sim.d<R.total){const st=Math.min(rem,1.5);rem-=st;sim.d=Math.min(R.total,sim.d+st);const q=posAt(R,sim.d);sim.pos=q.p;pushTrail(q.p);track(q.p);if(sim.justDone)break}
+    const a=posAt(R,sim.d);setHeading(a.dir);
+    if(sim.justDone){sim.doneTask=sim.justDone;sim.justDone=null;sim.playing=false;sim.status='blockdone';render();save();return}
+    if(sim.endWarn){if(Math.hypot(sim.pos[0]-sim.endWarn.p0[0],sim.pos[1]-sim.endWarn.p0[1])>=CONFIG.endWarnUnits){const pe=sim.endWarn;sim.endWarn=null;const tk=pubTasks().find(o=>o.id===pe.task);triggerAlert(pe.block,'end',{expected:pe.expected,taskId:pe.task,dirText:tk?DIR_TXT[tk.dir||'SN'].en:''});return}}
+    if(sim.d>=R.total){const tt=pubTasks().find(o=>o.id===sim.taskId);if(tt&&!isDone(tt.id))fillCoverage(tt);sim.playing=false;sim.status='blockdone';render();save();return}
+  }else if(sim.mode==='approach'){
+    const A=sim.approach;let rem=CONFIG.detourSpeed*1.6*mul*dt;
+    while(rem>1e-6&&A.d<A.total){const st=Math.min(rem,1.5);rem-=st;A.d=Math.min(A.total,A.d+st);const q=posAt(A,A.d);sim.pos=q.p;pushTrail(q.p);if(A.leg)track(q.p);setHeading(q.dir)}
+    if(sim.justDone){sim.doneTask=sim.justDone;sim.justDone=null;sim.playing=false;sim.status='blockdone';render();save();return}
+    if(A.d>=A.total){
+      if(A.leg){state.resume=null;const nt=currentTask();if(!nt){sim.status='complete';sim.playing=false;render();save();return}
+        const P2=planStart(nt);sim.route=P2.route;sim.taskId=P2.task.id;sim.d=0;sim.approach=P2.approach;sim.lastExit=null;sim.lastBlock=sim.lastBlock;
+        sim.mode='transit';sim.transit={from:sim.pos.slice(),to:P2.start.slice(),t:0,dur:Math.max(1.5,Math.hypot(P2.start[0]-sim.pos[0],P2.start[1]-sim.pos[1])/CONFIG.transitSpeed)};render();save();return}
+      sim.mode='route';sim.d=0;sim.approach=null;sim.inBlock=null;sim.lastIn=sim.pos.slice();sim.wrong=null}
+  }else if(sim.mode==='transit'){
+    const T=sim.transit;T.t+=dt*mul;const u=clamp(T.t/T.dur,0,1);sim.pos=[T.from[0]+(T.to[0]-T.from[0])*u,T.from[1]+(T.to[1]-T.from[1])*u];setHeading([T.to[0]-T.from[0],T.to[1]-T.from[1]]);
+    if(u>=1){finishTransit();render()}
+    return; // no wrong-block evaluation while relocating (not working)
+  }else if(sim.mode==='detour'){
+    const D=sim.detour;if(D.t<D.dist){D.t=Math.min(D.dist,D.t+CONFIG.detourSpeed*mul*dt);const u=D.dist?D.t/D.dist:1;sim.pos=[D.from[0]+(D.to[0]-D.from[0])*u,D.from[1]+(D.to[1]-D.from[1])*u];setHeading([D.to[0]-D.from[0],D.to[1]-D.from[1]]);pushTrail(sim.pos)}
+  }
+  // authorization check: any polygon of the published order is fine; anything else is a violation
+  const b=blockAt(sim.pos[0],sim.pos[1]);
+  if(sim.mode==='approach'&&!(sim.approach&&sim.approach.leg)){sim.wrong=null;return}
+  if(b&&!authSet().has(b)){if(!sim.wrong||sim.wrong.block!==b)sim.wrong={block:b,t:0};sim.wrong.t+=dt;if(sim.wrong.t>=CONFIG.wrongConfirmSeconds)triggerAlert(b)}else sim.wrong=null;
+}
+
+/* =====================================================================
+   LIVE GPS  (V3.14) — real phone/iPad fixes drive the same pass-counting logic
+   Only the NUMBER OF PASSES matters, so positions are smoothed, accuracy-filtered
+   and snapped to blocks with a buffer + hysteresis. Raw fixes are logged for review.
+   ===================================================================== */
+const GPSKEY='napanook-gps-log-v1',GPSON='napanook-gps-on';
+const GPSCFG={maxAcc:35,enterBuf:2.5,stayBuf:2.5,confirmFixes:2,wrongSeconds:4,wrongDepth:4,lostSeconds:12,alpha:.6,turnBack:10,keep:6000};
+const GPS={on:false,watch:null,wake:null,log:[],events:[],filt:null,cand:null,wrong:null,lastAcc:null,lastTs:0,err:null,doneAt:null,flushT:0,timer:null};
+function llToScreen(lat,lon){const R=TILE_REF,n=Math.pow(2,17),X=(lon+180)/360*n,Y=(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n,px=(X-R.x)*256,py=(Y-R.y)*256;return[R.e+R.a*px+R.c*py,R.f+R.b*px+R.d*py]}
+function screenToLL(sx,sy){const [X,Y]=screenToTile(17,sx,sy),n=Math.pow(2,17);return{lon:X/n*360-180,lat:Math.atan(Math.sinh(Math.PI*(1-2*Y/n)))*180/Math.PI}}
+function logEv(type,d){if(!GPS.on)return;GPS.events.push({t:Date.now(),type,...d});if(GPS.events.length>4000)GPS.events.shift()}
+function gpsFlush(){try{localStorage.setItem(GPSKEY,JSON.stringify({log:GPS.log.slice(-GPSCFG.keep),events:GPS.events.slice(-2000)}))}catch(e){}}
+function gpsLoadLog(){try{const o=JSON.parse(localStorage.getItem(GPSKEY)||'null');if(o&&!GPS.log.length){GPS.log=o.log||[];GPS.events=o.events||[]}}catch(e){}}
+function distOut(f,p){return inRings(p[0],p[1],f.rings)?0:nearestBoundary(f,p).d}
+/* buffered, sticky block assignment: adjacent blocks touch, so a block is only left when clearly outside it */
+function bufBlock(p){
+  const cur=sim.inBlock,ex=blockAt(p[0],p[1]);let want=null;
+  if(ex)want=ex;
+  else if(cur&&distOut(FBY[cur],p)<=GPSCFG.stayBuf)want=cur;
+  else{let bd=GPSCFG.enterBuf;for(const f of FEATURES){if(p[0]<f.bb[0]-bd||p[0]>f.bb[2]+bd||p[1]<f.bb[1]-bd||p[1]>f.bb[3]+bd)continue;const d=distOut(f,p);if(d<=bd){bd=d;want=f.id}}}
+  if(want===cur){GPS.cand=null;return cur}
+  if(GPS.cand&&GPS.cand.b===want)GPS.cand.n++;else GPS.cand={b:want,n:1};
+  if(GPS.cand.n>=GPSCFG.confirmFixes){GPS.cand=null;return want}
+  return cur;
+}
+/* shallow headland turns can stay inside the buffered polygon: a long run to the far end followed by a clear reversal also closes the pass */
+function gpsTurn(b,p,pr){
+  const g=bg(b),vt=toVT(g,p),T=vt[1],sp=edgeSpans({rings:g.R},vt[0]),cs=sp.length?sp.reduce((q,x)=>!q||x[1]-x[0]>q[1]-q[0]?x:q,null):null,len=cs?cs[1]-cs[0]:g.tmax-g.tmin;let tr=GPS.tr;
+  if(!tr||tr.b!==b||tr.side!==pr.open.side)tr=GPS.tr={b,side:pr.open.side,T0:T,m:0,pm:p.slice()};
+  const s=pr.open.side==='E'?tr.T0-T:T-tr.T0;
+  if(s>tr.m){tr.m=s;tr.pm=p.slice();tr.Tm=T}
+  const tk=taskFor(b),mg=Math.max(6,.15*len),farHit=()=>cs?(pr.open.side==='E'?tr.Tm<=cs[0]+mg:tr.Tm>=cs[1]-mg)&&tr.m>=.5*len:tr.m>=.8*len;
+  if(tk&&(pr.rows||0)+1>=taskAlleys(tk).length&&farHit()){GPS.tr=null;logEv('lastrow',{block:b,side:pr.open.side,T0:Math.round(tr.T0),m:Math.round(tr.m),len:Math.round(len),T:Math.round(T)});onExit(b,tr.pm);return} // final row reached the far end: close it now, no need to wait for the exit
+  else if(farHit()&&s<tr.m-GPSCFG.turnBack){GPS.tr=null;logEv('turn',{block:b});onExit(b,tr.pm);onEnter(b,p)}
+}
+function pushLog(r){GPS.log.push(r);if(GPS.log.length>GPSCFG.keep*2)GPS.log.splice(0,GPSCFG.keep)}
+function gpsFix(f){ // f: {lat,lon,accuracy,speed,heading,ts}
+  const ts=f.ts||Date.now(),r2=v=>v==null?null:Math.round(v*100)/100,rec={t:ts,lat:f.lat,lon:f.lon,acc:r2(f.accuracy),spd:r2(f.speed),hdg:f.heading==null||isNaN(f.heading)?null:Math.round(f.heading)};
+  const raw=llToScreen(f.lat,f.lon);rec.x=r2(raw[0]);rec.y=r2(raw[1]);
+  GPS.lastTs=ts;GPS.lastAcc=f.accuracy;GPS.err=null;
+  if(f.accuracy!=null&&f.accuracy>GPSCFG.maxAcc){rec.skip='accuracy';pushLog(rec);gpsChip();return}
+  const prev=GPS.filt;GPS.filt=prev?[prev[0]+(raw[0]-prev[0])*GPSCFG.alpha,prev[1]+(raw[1]-prev[1])*GPSCFG.alpha]:raw.slice();
+  const p=GPS.filt;if(prev&&Math.hypot(p[0]-prev[0],p[1]-prev[1])>1.5)setHeading([p[0]-prev[0],p[1]-prev[1]]);
+  sim.pos=p.slice();rec.fx=r2(p[0]);rec.fy=r2(p[1]);
+  if(sim.mode!=='gps'||!['active','blockdone'].includes(sim.status)){pushLog(rec);gpsChip();return} // shown on the map, nothing counted before Start Workday / during an alert
+  pushTrail(p);
+  const b=bufBlock(p);rec.blk=b||null;
+  if(b&&pubTasks().some(t=>t.block===b))sim.lastBlock=b;
+  if(b!==sim.inBlock){GPS.tr=null;if(sim.inBlock)onExit(sim.inBlock,sim.lastIn||p);if(b)onEnter(b,p);sim.inBlock=b}
+  else if(b){const tk=taskFor(b),pq=tk&&state.progress[tk.id];if(pq&&pq.open)gpsTurn(b,p,pq)}
+  sim.lastIn=p.slice();pushLog(rec);
+  if(sim.justDone){sim.doneTask=sim.justDone;sim.justDone=null;sim.status='blockdone';GPS.doneAt=p.slice();logEv('blockdone',{task:sim.doneTask});render();save();return}
+  if(sim.status==='blockdone'&&GPS.doneAt){const dt_=taskById(sim.doneTask);if((dt_&&b!==dt_.block)||Math.hypot(p[0]-GPS.doneAt[0],p[1]-GPS.doneAt[1])>20){GPS.doneAt=null;sim.status=currentTask()?'active':'complete';render();save()}}
+  if(sim.endWarn&&Math.hypot(p[0]-sim.endWarn.p0[0],p[1]-sim.endWarn.p0[1])>=CONFIG.endWarnUnits){const pe=sim.endWarn;sim.endWarn=null;const tk=pubTasks().find(o=>o.id===pe.task);triggerAlert(pe.block,'end',{expected:pe.expected,taskId:pe.task,dirText:tk?DIR_TXT[tk.dir||'SN'].en:''});return}
+  // wrong block: only when truly inside an unauthorised polygon for a few seconds (no buffer: avoids false alarms on headlands)
+  const ex=blockAt(p[0],p[1]);
+  if(ex&&!authSet().has(ex)&&nearestBoundary(FBY[ex],p).d>=GPSCFG.wrongDepth){if(!GPS.wrong||GPS.wrong.block!==ex)GPS.wrong={block:ex,t0:ts};if(ts-GPS.wrong.t0>=GPSCFG.wrongSeconds*1000){GPS.wrong=null;triggerAlert(ex);return}}else GPS.wrong=null;
+  if(ts-GPS.flushT>15000){GPS.flushT=ts;gpsFlush()}
+  gpsChip();
+}
+function taskById(id){return pubTasks().find(o=>o.id===id)}
+function gpsChip(){
+  const c=$('gpsChip');if(!c)return;c.classList.toggle('hidden',!GPS.on);if(!GPS.on)return;
+  const age=GPS.lastTs?(Date.now()-GPS.lastTs)/1000:null;let txt,cls;
+  if(GPS.err){txt='GPS: '+GPS.err;cls='bad'}
+  else if(age==null){txt='Waiting for GPS…';cls='warn'}
+  else if(age>GPSCFG.lostSeconds){txt='GPS signal lost ('+Math.round(age)+' s)';cls='bad'}
+  else{const a=GPS.lastAcc;txt='GPS ±'+(a==null?'?':Math.round(a))+' m';cls=a!=null&&a>GPSCFG.maxAcc?'warn':'ok'}
+  c.textContent=txt;c.className='gpschip '+cls;
+}
+function gpsStartWorkday(){
+  const t=currentTask();if(!t){sim.status='complete';render();return false}
+  state.resume=null;const P=planStart(t);sim.route=P.route;sim.taskId=P.task.id;sim.d=0;sim.approach=null;sim.transit=null;sim.detour=null;sim.saved=null;
+  sim.mode='gps';sim.status='active';sim.playing=true;sim.wrong=null;sim.alertId=null;sim.endWarn=null;sim.lastExit=null;sim.lastBlock=null;sim.justDone=null;
+  sim.inBlock=null;sim.lastIn=null;sim.trail=[];GPS.cand=null;GPS.wrong=null;GPS.doneAt=null;
+  if(GPS.filt){sim.pos=GPS.filt.slice();sim.trail=[sim.pos.slice()]}
+  logEv('startWorkday',{task:t.id,block:t.block,day:state.day});
+  opMap.setScale(CONFIG.workScale);opMap.setFollow(true);render();save();return true;
+}
+async function wakeOn(){try{if('wakeLock' in navigator&&GPS.on&&!GPS.wake){GPS.wake=await navigator.wakeLock.request('screen');GPS.wake.addEventListener('release',()=>{GPS.wake=null})}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&GPS.on)wakeOn()});
+function gpsOn(){
+  if(GPS.on)return;
+  if(!('geolocation' in navigator)){alert('This browser has no GPS access.');return}
+  if(isLive()){alert('End the current workday first, then switch to Live GPS.');return}
+  GPS.on=true;gpsLoadLog();GPS.err=null;try{localStorage.setItem(GPSON,'1')}catch(e){}
+  document.body.classList.add('gps-live');sim.mode='gps';sim.pos=null;
+  GPS.watch=navigator.geolocation.watchPosition(pos=>{const c=pos.coords;gpsFix({lat:c.latitude,lon:c.longitude,accuracy:c.accuracy,speed:c.speed,heading:c.heading,ts:pos.timestamp||Date.now()})},
+    e=>{GPS.err=e.code===1?'permission denied — allow Location for this site':e.code===2?'position unavailable':'timeout';gpsChip()},{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+  GPS.timer=setInterval(gpsChip,2000);wakeOn();
+  if(location.protocol==='http:'&&!/^(localhost|127\.)/.test(location.hostname))GPS.err='needs https';
+  const a=$('attribGps');if(a)a.textContent='Live GPS';const pt=$('pilotTxt');if(pt)pt.innerHTML=' · simulated data, live GPS';
+  gpsChip();gpsMenu();render();
+}
+function gpsOff(){
+  if(!GPS.on)return;
+  if(isLive()){alert('End the workday first.');return}
+  gpsFlush();if(GPS.watch!=null)navigator.geolocation.clearWatch(GPS.watch);clearInterval(GPS.timer);if(GPS.wake){try{GPS.wake.release()}catch(e){}}GPS.wake=null;
+  GPS.on=false;GPS.watch=null;GPS.filt=null;try{localStorage.removeItem(GPSON)}catch(e){}
+  document.body.classList.remove('gps-live');sim.mode='route';const a=$('attribGps');if(a)a.textContent='GPS is simulated';const pt=$('pilotTxt');if(pt)pt.innerHTML=' · simulated data &amp; GPS';gpsChip();gpsMenu();render();
+}
+function gpsMenu(){const b=$('btnGps');if(b)b.querySelector('.ck').textContent=GPS.on?'✓':''}
+function download(name,type,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+function gpsExport(fmt){
+  gpsFlush();const stamp=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19),meta={app:'Napanook Dispatch V3.14',exported:new Date().toISOString(),tractor:state.tractor,operator:state.operator,config:GPSCFG,tileRef:TILE_REF};
+  if(fmt==='csv'){const cols=['t','lat','lon','acc','spd','hdg','x','y','fx','fy','blk','skip'];download('gps_trace_'+stamp+'.csv','text/csv',cols.join(',')+'\n'+GPS.log.map(r=>cols.map(c=>r[c]==null?'':r[c]).join(',')).join('\n'))}
+  else download('gps_log_'+stamp+'.json','application/json',JSON.stringify({meta,progress:state.progress,fixes:GPS.log,events:GPS.events},null,1));
+}
+function gpsClear(){GPS.log=[];GPS.events=[];try{localStorage.removeItem(GPSKEY)}catch(e){}}
+let last=0;
+function loop(ts){const dt=Math.min(.1,(ts-(last||ts))/1000);last=ts;tick(dt);frame(dt);requestAnimationFrame(loop)}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function blockClassSup(id){
+  const a=curAlert();if(a&&sim.status==='alert'&&a.block===id)return'wrong';
+  const pub=pubTasks().filter(t=>t.block===id),dr=state.tasks.filter(t=>t.block===id);
+  const cur=currentTask();
+  if(isLive()&&cur&&(cur.block===id||zoneOf(cur).includes(id)))return'active'+(pub.every(t=>isDone(t.id))?' done':' auth');
+  if(state.selected.includes(id))return'sel';
+  const set=pub.length?pub:dr;
+  if(set.length){if(set.every(t=>isDone(t.id)))return'done';return pub.length&&publishedSnapshot()===orderSnapshot()?'auth':(pub.length?'auth':'draft')}
+  return'';
+}
+function blockClassOp(id){
+  const a=curAlert();if(a&&sim.status==='alert'&&a.block===id)return'wrong';
+  const pub=pubTasks().filter(t=>t.block===id),cur=currentTask();
+  if(!pub.length)return'dim';
+  if(cur&&sim.status!=='idle'&&sim.status!=='complete'&&zoneOf(cur).includes(id)&&!pub.every(t=>isDone(t.id)))return'active auth';
+  if(pub.every(t=>isDone(t.id)))return'done';
+  return'auth';
+}
+function statusInfo(){
+  if(!state.published)return{t:'No work order',c:''};
+  switch(sim.status){case'active':return sim.playing?{t:'Working',c:'green'}:{t:'Paused',c:'amber'};case'blockdone':return{t:'Block finished',c:'blue'};case'alert':return{t:'ALERT',c:'red'};case'complete':return{t:'Order complete',c:'green'};default:return{t:'Not started',c:''}}
+}
+const taskDesc=t=>`${DIR_TXT[t.dir||'SN'].short} · ${t.notes?'text instructions':PAT_TXT[t.pat||'all'].short} · ${taskAlleys(t).length} rows`;
+function renderSup(){
+  // selectors
+  if(!$('selOp').options.length){$('selOp').innerHTML=OPS.map(o=>`<option value="${o.k}">${esc(o.en)} / ${esc(o.es)}</option>`).join('');$('selOperator').innerHTML=OPERATORS.map(o=>`<option>${esc(o)}</option>`).join('');$('selTractor').innerHTML=TRACTORS.map(o=>`<option>${esc(o)}</option>`).join('')}
+  const live=isLive();
+  $('selOp').value=state.opKey;$('selOperator').value=state.operator;$('selTractor').value=state.tractor;$('selRanch').value=state.ranch;
+  for(const id of['selOperator','selTractor','selOp','selDir','selPat','inBlocks','inNotes','btnAdd','btnClear'])$(id).disabled=live;
+  $('selDir').value=state.dirKey;$('selPat').value=state.patKey;
+  $('selRanch').disabled=state.tasks.length>0||live; // never mix ranches in one order
+  // chips
+  $('selChips').innerHTML=state.selected.length?state.selected.map(b=>`<span class="chip">Block ${esc(b)}<button data-rm="${esc(b)}" aria-label="Remove block ${esc(b)}">×</button></span>`).join(''):'<span class="hint">Click blocks on the map, or type block numbers and press Enter.</span>';
+  const m=$('selMsg');m.className='msg '+(state.msg.cls||'');m.innerHTML=state.msg.html||esc(state.msg.text||'');
+  $('btnAdd').textContent=state.selected.length?`Add ${state.selected.length} block${state.selected.length>1?'s':''} to work order`:'Add to work order';
+  // tasks
+  const tl=pubTasks();$('taskCount').textContent='';
+  const cur=currentTask();
+  $('taskList').innerHTML=state.tasks.length?state.tasks.map((t,i)=>{
+    const done=isDone(t.id),isCur=cur&&cur.id===t.id&&state.published&&publishedSnapshot()===orderSnapshot();const pct=taskPct(state.published&&pubTasks().find(x=>x.id===t.id)?t:null);
+    const meta=done?'✓ Complete':(state.published&&pubTasks().find(x=>x.id===t.id)?(pct>0?`In progress · ${pct}%`:'Queued'):'Draft');
+    const lock=live||done;
+    return`<div class="task${isCur?' current':''}${done?' done':''}"><span class="no">${i+1}</span><div class="tx"><b>Block ${esc(t.block)} · ${esc(tn(t.operation,'en'))}${t.pass>1?' (pass '+t.pass+')':''}</b><small>${esc(meta)} · ${esc(taskDesc(t))}${t.notes?' · '+esc(t.notes):''}</small></div><div class="acts"><button data-mv="${i}:-1" ${lock||i===0?'disabled':''} aria-label="Move up">↑</button><button data-mv="${i}:1" ${lock||i===state.tasks.length-1?'disabled':''} aria-label="Move down">↓</button><button data-rmt="${i}" ${lock?'disabled':''} aria-label="Remove task">×</button></div></div>`}).join(''):'<div class="empty">No tasks yet.<br>Choose an operation, select blocks, then add them.</div>';
+  // status + publish
+  const si=statusInfo();let pill,pc;
+  if(!state.tasks.length&&!state.published){pill='Empty';pc=''}else if(live||sim.status==='complete'){pill=si.t;pc=si.c}else if(isDirty()){pill=state.published?'Changes not published':'Draft';pc='amber'}else{pill='Published';pc='green'}
+  const wp=$('woStatus');wp.className='pill '+pc;wp.innerHTML='<span class="dot"></span>'+esc(pill);
+  const dirty=isDirty();
+  $('btnPublish').disabled=live||!state.tasks.length||!dirty;
+  $('btnPublish').textContent=live?'Workday in progress':(!state.published?'Publish to operator':(dirty?'Republish to operator':'Published ✓'));
+  $('pubNote').textContent=live?'Editing is locked while the operator workday is active.':(state.pubMsg||(state.published&&!dirty?`Sent to ${state.published.operator} · ${state.published.tractor} at ${state.published.time}. Start Workday is available on the operator iPad.`:(state.tasks.length?'Assign the operator and tractor, then publish.':'')));
+  // dispatch card
+  renderDispatch();
+  // alert banner
+  const ab=$('supAlert'),al=state.alerts.filter(a=>!a.cleared).slice(-1)[0];
+  if(al){ab.classList.remove('hidden');ab.innerHTML=`<span class="ic">⚠</span><div><b>${al.kind==='end'?'WRONG END':'WRONG BLOCK'} — ${esc(al.tractor)} · ${esc(al.operator)}</b><small>${al.kind==='end'?`Started Block ${esc(al.block)} at the wrong end at ${esc(al.time)} · Order: start at the ${al.expected==='S'?'south':'north'} end`:`Working in unauthorized Block ${esc(al.block)} at ${esc(al.time)} · Authorized: ${esc(al.authorized.join(', '))}`}<br>${al.ack?'Operator acknowledged the warning.':'Operator warning on screen — awaiting acknowledgement.'}</small></div><button data-clearalert="${al.id}">Dismiss</button>`}else ab.classList.add('hidden');
+  const unacked=state.alerts.filter(a=>!a.cleared).length;const bd=$('tabBadge');bd.classList.toggle('hidden',!unacked||state.tab==='sup');bd.textContent=unacked;
+  supMap.setClasses(blockClassSup);
+}
+function renderDispatch(){
+  const d=$('dispatch'),si=statusInfo();
+  if(!state.published){d.innerHTML='<h4>Dispatch</h4><div class="sub">No work order published.</div><div class="hint" style="margin-top:6px">Napanook Vineyard · '+FEATURES.length+' mapped blocks</div>';return}
+  const p=state.published,c=currentTask(),tot=p.tasks.length,done=p.tasks.filter(t=>isDone(t.id)).length;
+  const pct=Math.round(100*(done+(c?taskPct(c)/100:0))/tot);
+  d.innerHTML=`<h4>Dispatch · ${esc(p.ranch)}</h4><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${esc(p.tractor)} · ${esc(p.operator)}</b><span class="pill ${si.c}"><span class="dot"></span>${esc(si.t)}</span></div>
+  <div class="big">${c?`Block ${esc(c.block)} · ${esc(tn(c.operation,'en'))}`:'All tasks complete'}</div>
+  <div class="sub">${done===tot?'Order complete':'Work order in progress'} · Day ${state.day}</div>${(!isLive()&&isDirty())?`<div class="dirtyNote">Unpublished changes — press Republish to send them to the operator.</div>`:''}<div class="bar"><i id="dispBar" style="width:${pct}%"></i></div>`;
+}
+function renderOp(){
+  const L=state.lang,es=L==='es',p=state.published,c=focusTask(),zn=zoneOf(currentTask()),nx=(c&&p&&pubTasks().find(o=>!isDone(o.id)&&!zn.includes(o.block)&&pubTasks().indexOf(o)>pubTasks().indexOf(c)))||(c&&p&&pubTasks().find(o=>!isDone(o.id)&&!zn.includes(o.block)))||null,si=sim.status;
+  const T=(en,sp)=>es?sp:en;
+  $('opTractor').textContent=p?p.tractor:T('No tractor assigned','Sin tractor asignado');
+  $('opWho').textContent=p?`${p.operator} · ${p.ranch}`:'—';
+  document.querySelectorAll('[data-lang]').forEach(b=>b.classList.toggle('on',b.dataset.lang===L));
+  const now=$('nowCard');
+  if(!p){now.className='now idle';now.innerHTML=`<div class="k">${T('NO WORK ORDER','SIN ORDEN DE TRABAJO')}</div><div class="opn" style="margin-top:10px">${T('Waiting for your supervisor','Esperando al supervisor')}</div><div class="ops">${T('A work order will appear here when it is published.','La orden aparecerá aquí cuando se publique.')}</div>`}
+  else if(!c){now.className='now';now.innerHTML=`<div class="k">${T('WORK ORDER','ORDEN DE TRABAJO')}</div><div class="opn" style="margin-top:10px">✓ ${T('All blocks complete','Todos los bloques completos')}</div><div class="ops">${T('Thank you. End your workday.','Gracias. Termine su jornada.')}</div>`}
+  else{const o=opByKey(c.operation);now.className='now'+(si==='idle'?' idle':'');
+    const sim_=zoneOf(currentTask()||c),many=sim_.length>1;
+    now.innerHTML=`<div class="k">${T('YOUR TASK NOW','SU TAREA AHORA')}</div><div class="bn${many?' many':''}"><small>${many?T('Blocks','Bloques'):T('Block','Bloque')}</small><b>${esc(sim_.join(es?' y ':' & '))}</b></div><div class="opn">${esc(es?o.es:o.en)}</div><div class="ops">${esc(es?o.en:o.es)}</div>${rowSpec(c,es)}<div class="bar"><i id="nowBar" style="width:${taskPct(progTask(c))}%"></i></div>`}
+  const nc=$('nextCard');
+  nc.innerHTML=p?`<span>${T('NEXT','SIGUIENTE')}</span><b>${nx?`${T('Block','Bloque')} ${esc(nx.block)} · ${esc(tn(nx.operation))}`:'—'}</b>`:`<span>${T('NEXT','SIGUIENTE')}</span><b>—</b>`;
+  $('opList').innerHTML=p?p.tasks.map(t=>{const done=isDone(t.id),cu=c&&c.id===t.id;return`<div class="opi${cu?' cur':''}${done?' done':''}"><span class="ic">${done?'✓':(cu?'▶':'○')}</span><div class="tx"><b>${T('Block','Bloque')} ${esc(t.block)}</b> <small>${esc(tn(t.operation))}</small></div></div>`}).join(''):'';
+  const bs=$('btnStart'),be=$('btnEnd');
+  const live=isLive();bs.classList.toggle('hidden',live);be.classList.toggle('hidden',!live);
+  bs.textContent=T('Start Workday','Iniciar jornada');be.textContent=T('End Workday','Terminar jornada');
+  bs.disabled=!p||!c||si==='complete';
+  // status chip on map
+  const lab={idle:T('Workday not started','Jornada sin iniciar'),active:sim.playing?T('Working','Trabajando'):T('Paused','En pausa'),blockdone:T('Block finished','Bloque terminado'),alert:T('ALERT','ALERTA'),complete:T('Work order complete','Orden completa')}[si]||'';
+  const col={idle:'#8a948e',active:sim.playing?'#2f9e50':'#d29b19',blockdone:'#2a7de1',alert:'#d12a2a',complete:'#2f9e50'}[si];
+  $('opStat').innerHTML=`<span style="width:11px;height:11px;border-radius:50%;background:${col};display:inline-block"></span>${esc(lab)} · ${T('Day','Día')} ${state.day} <span style="color:#7a857e;font-weight:500">· GPS ${GPS.on?T('live','en vivo'):T('simulated','simulado')}</span>`;
+  $('opLegend').innerHTML=`<span><i style="background:rgba(70,178,92,.5);border-color:#7fe59a"></i>${T('Your blocks','Sus bloques')}</span><span><i style="background:rgba(224,52,52,.55);border-color:#ff7a7a"></i>${T('Completed','Completado')}</span><span><i style="background:rgba(96,104,114,.5);border-color:#bbb"></i>${T('Not authorized','No autorizado')}</span><span style="color:#1c5bb0"><b>●</b> ${T('Current trail','Recorrido actual')} <span style="color:#8a949c"><b>●</b> ${T('Previous','Previo')}</span></span>`;
+  // presenter
+  const act=si==='active'||si==='blockdone';
+  $('pPlay').disabled=si!=='active';$('pPlay').textContent=sim.playing?'⏸ Pause':'▶ Play';
+  $('pNext').disabled=!(act&&sim.mode!=='detour');$('pNext').classList.toggle('pulse',si==='blockdone');
+  $('pWrong').disabled=!(act&&sim.mode!=='detour')||FEATURES.every(f=>authSet().has(f.id));
+  document.querySelectorAll('#pSpeed button').forEach(b=>b.classList.toggle('on',Number(b.dataset.sp)===sim.speed));
+  $('pEnd').textContent='Start work in wrong direction test: '+(sim.demoWrongEnd?'ON — applies at Start Workday':'OFF');$('pEnd').classList.toggle('danger',sim.demoWrongEnd);
+  // red overlay
+  const ov=$('alertOverlay'),a=curAlert(),show=si==='alert'&&a;
+  if(show){ov.classList.remove('hidden');
+    if(a.kind==='end'){const en=a.expected==='S'?'SOUTH':'NORTH',sp=a.expected==='S'?'SUR':'NORTE';$('aoT').textContent='STOP — WRONG END';$('aoT2').textContent='ALTO — EXTREMO EQUIVOCADO';
+      $('aoEn').textContent=`You started at the wrong end of Block ${a.block}. Your order says to start at the ${en} end. Stop, go to the ${en} end and start again.`;
+      $('aoEs').textContent=`Empezó por el extremo equivocado del bloque ${a.block}. Su orden dice empezar por el extremo ${sp}. Deténgase, vaya al extremo ${sp} y empiece de nuevo.`;$('aoAuth').textContent=`Order / Orden: ${a.dirText}`}
+    else{$('aoT').textContent='STOP — WRONG BLOCK';$('aoT2').textContent='ALTO — BLOQUE INCORRECTO';
+      $('aoEn').textContent=`You are working in Block ${a.block}. It is not on your work order. Stop work and contact your supervisor.`;$('aoEs').textContent=`Está trabajando en el bloque ${a.block}. No está en su orden de trabajo. Detenga el trabajo y llame a su supervisor.`;$('aoAuth').textContent=`Authorized / Autorizados: ${a.authorized.join(', ')}`}}
+  else ov.classList.add('hidden');
+  opMap.setClasses(blockClassOp);
+  renderHow(c,es,T);syncGuide();
+}
+/* work zone = the unfinished on-order blocks the tractor can work straight through together, listed in work-order order */
+let zKey='',zVal=[];
+function zoneOf(c){if(!c)return[];const key=c.id+'|'+pubTasks().map(t=>isDone(t.id)?1:0).join('');if(key===zKey)return zVal;
+  const ord=pubTasks().map(x=>x.block);zKey=key;zVal=[...new Set([c.block,...adjacentOnOrder(c).filter(id=>pubTasks().some(x=>x.block===id&&!isDone(x.id)))])].sort((a,b)=>ord.indexOf(a)-ord.indexOf(b));return zVal}
+function progTask(c){const cur=sim.lastBlock?pubTasks().find(t=>t.block===sim.lastBlock):null;return cur||currentTask()||c}
+function rowsLine(c){
+  const es=state.lang==='es',T=(a,b)=>es?b:a,zn=zoneOf(currentTask()||c),cur=sim.lastBlock?pubTasks().find(t=>t.block===sim.lastBlock):null;
+  if(cur){const st=taskStat(cur);return`${T('Rows complete','Líneas completas')}${zn.length>1?' · '+T('Block','Bloque')+' '+esc(cur.block):''}: <b>${st.done} / ${st.total}</b>`}
+  if(zn.length>1)return`${T('Rows to complete','Líneas por completar')}: `+zn.map(id=>{const t=pubTasks().find(x=>x.block===id&&!isDone(x.id));return t?`${esc(id)} <b>${taskStat(t).total-taskStat(t).done}</b>`:''}).filter(Boolean).join(' · ');
+  const st=taskStat(c);return`${T('Rows complete','Líneas completas')}: <b>${st.done} / ${st.total}</b>`}
+function rowSpec(c,es){
+  if(c.notes)return`<div class="spec">${esc(c.notes)}</div>`;
+  const pt=PAT_TXT[c.pat||'all'],f=taskAlleys(c)[0];
+  return`<div class="spec">${esc(es?pt.es:pt.en)}${f&&(c.pat||'all')!=='all'?` · ${es?'Empiece entre las líneas':'Start between rows'} ${f.rows[0]} / ${f.rows[1]}`:''}</div>`}
+function renderHow(c,es,T){
+  const h=$('howCard');if(!c||!state.published||sim.status==='complete'){h.classList.add('hidden');h.innerHTML='';return}
+  h.classList.remove('hidden');
+  const dir=DIR_TXT[c.dir||'SN'],pr=state.progress[c.id],started=!!(pr&&(pr.started||pr.rows>0)),entry=(pr&&pr.entry)||'E',st=taskStat(c),Ls=taskAlleys(c);
+  let html=`<div class="dir"><i>${dir.ar}</i><span>${T('Work','Trabaje')} ${es?dir.es:dir.en}</span></div>`;
+  const lock=sim.status==='active'&&(sim.mode==='route'||sim.mode==='approach');
+  if(!started)html+=`<div class="ent"><span>${T('Enter from','Entrar por')}</span><div class="seg"><button data-entry="E" class="${entry==='E'?'on':''}" ${lock?'disabled':''}>${T('East','Este')}</button><button data-entry="W" class="${entry==='W'?'on':''}" ${lock?'disabled':''}>${T('West','Oeste')}</button></div></div>`;
+  else html+=`<div class="ent">${T('Entered from','Entró por')} ${entry==='E'?T('the East','el Este'):T('the West','el Oeste')}</div>`;
+  html+=`<div class="cnt" id="howCnt">${rowsLine(c)}</div>`;
+  if(sim.status==='blockdone'){const dt_=pubTasks().find(o=>o.id===(sim.doneTask||sim.taskId));if(dt_&&isDone(dt_.id))html+=`<div class="doneNote">✓ ${T('Block','Bloque')} ${esc(dt_.block)} ${T('complete','completo')}</div>`}
+  const zn=zoneOf(currentTask()||c);
+  if(zn.length>1)html+=`<div class="thru">↔ ${T('These blocks connect — keep going straight through.','Estos bloques están unidos — siga derecho.')}</div>`;
+  const left=pubTasks().filter(o=>o.id!==c.id&&!zn.includes(o.block)&&!isDone(o.id)&&taskPct(o)>0);
+  for(const o of left)html+=`<div class="left">${T('Block','Bloque')} ${esc(o.block)} ${T('not finished','sin terminar')} · ${taskPct(o)}%</div>`;
+  h.innerHTML=html;
+}
+let camKey='';
+function syncGuide(){
+  const t=currentTask(),ok=state.published&&t&&sim.status==='idle';
+  if(!ok){opMap.setLeft(null);camKey='';return}
+  const pr=state.progress[t.id],any=pr&&((pr.rows>0)||pr.open);
+  opMap.setLeft(any&&sim.lastPos?sim.lastPos:null);
+  if(state.tab==='op'&&opMap.px.w){const key=t.id+'|'+state.day+'|'+((pr&&pr.entry)||'E');if(key!==camKey){camKey=key;const f=FBY[t.block];opMap.setFollow(false);opMap.setScale(.5);const c=any&&sim.lastPos?sim.lastPos:[f.cx,f.cy];opMap.center(c[0],c[1])}}
+}
+function setEntry(side){const t=currentTask();if(!t||(sim.status==='active'&&(sim.mode==='route'||sim.mode==='approach')))return;const pr=state.progress[t.id]=state.progress[t.id]||{};if(pr.started||pr.rows>0)return;pr.entry=side;save();render()}
+function syncDir(){let list=[];if(state.published&&sim.status!=='complete'){const seen=new Set();for(const t of pubTasks()){if(isDone(t.id))continue;const st=startTask(t);if(seen.has(st.id))continue;for(const o of groupTasks(st))seen.add(o.id);seen.add(st.id);list.push(...dirLines(st))}}
+  if(list.length>2){const first=startTask(pubTasks().find(t=>!isDone(t.id))),g=bg(first.block),T=d=>toVT(g,d.a)[1];
+    const E=list.filter(d=>d.side==='E').sort((a,b)=>T(b)-T(a))[0],W=list.filter(d=>d.side==='W').sort((a,b)=>T(a)-T(b))[0];list=[E,W].filter(Boolean)}
+  for(const m of[opMap,supMap])if(m)m.setDir(list)}
+function renderAll(){renderSup();renderOp();syncDir()}
+let render=renderAll;
+let trKey='';
+function frame(dt){
+  const showPos=sim.pos&&(isLive()||sim.status==='complete')?sim.pos:null;
+  opMap.setMarker(showPos,sim.heading);supMap.setMarker(showPos,sim.heading);
+  // blue = the current run (it follows the driver along the fitted lanes); grey = earlier runs
+  const key=sim.covVer+'|'+sim.histVer+'|'+sim.trail.length+'|'+state.published;
+  if(key!==trKey){trKey=key;const prev=[];for(const t of pubTasks())for(const h of(state.history[t.id]||[]))prev.push(h);opMap.setTrails(prev,sim.trail);supMap.setTrails(prev,sim.trail)}
+  if(showPos&&state.tab==='op'&&opMap.follow&&opMap.px.w){const c=opMap.cam,k=Math.min(1,dt*6);opMap.center(c.cx+(showPos[0]-c.cx)*k,c.cy+(showPos[1]-c.cy)*k)}
+  const c=focusTask(),pct=c?taskPct(progTask(c)):0;const nb=$('nowBar');if(nb)nb.style.width=pct+'%';
+  const cc=currentTask();const db=$('dispBar');if(db&&state.published){const tot=pubTasks().length,done=pubTasks().filter(t=>isDone(t.id)).length;db.style.width=Math.round(100*(done+(cc?taskPct(cc)/100:0))/tot)+'%'}
+  if(sim.covVer!==frame.hv){frame.hv=sim.covVer;const hp=$('howCnt');if(hp&&c)hp.innerHTML=rowsLine(c)}
+}
+
+/* =====================================================================
+   SUPERVISOR ACTIONS
+   ===================================================================== */
+function normalize(token){let t=token.trim().toUpperCase().replace(/^BLOCKS?\s*/,'').replace(/\s+/g,'');return t}
+function selectBlock(id){if(isLive())return;if(!state.selected.includes(id))state.selected.push(id);state.msg={text:'',cls:''};renderSup()}
+function selectTyped(){
+  const raw=$('inBlocks').value;if(!raw.trim())return true;
+  const toks=raw.split(/[,;\n]+/).flatMap(s=>/^\s*(blocks?\s*)?[0-9]+[a-z]?(\s+[0-9]+[a-z]?)+\s*$/i.test(s)?s.replace(/blocks?/i,'').trim().split(/\s+/):[s]).map(normalize).filter(Boolean);
+  const bad=[],added=[];for(const t of toks){if(!FBY[t]){bad.push(t);continue}if(!state.selected.includes(t)){state.selected.push(t);added.push(t)}}
+  if(bad.length){const miss=bad.filter(b=>MISSING_NOTE[b]);state.msg={text:`No map geometry for: ${bad.join(', ')}.`+(miss.length?` (${miss.join(', ')} appear on the printed map but are not in the shapefile.)`:''),cls:'err'}}else state.msg={text:added.length?'':'Already selected.',cls:''};
+  $('inBlocks').value=bad.join(', ');renderSup();return !bad.length;
+}
+function addToOrder(repeat){
+  if(isLive())return;
+  if(repeat&&state.pendingRepeat&&state.pendingRepeat.length){state.selected=[...new Set([...state.selected,...state.pendingRepeat])]}
+  if($('inBlocks').value.trim()&&!selectTyped())return;
+  if(!state.selected.length){state.msg={text:'Select at least one block on the map or type its number.',cls:'err'};renderSup();return}
+  const notes=$('inNotes').value.trim();state.notes=notes;let added=[],dups=[];
+  for(const b of [...new Set(state.selected)]){
+    const same=state.tasks.filter(t=>t.block===b&&t.operation===state.opKey);
+    if(same.length&&!repeat){dups.push(b);continue}
+    state.tasks.push({id:'t'+(state.seq++),block:b,operation:state.opKey,notes,pass:same.length+1,dir:state.dirKey,pat:state.patKey});added.push(b);
+  }
+  state.pendingRepeat=dups.slice();state.selected=[];
+  if(added.length)$('inNotes').value='';
+  if(dups.length&&!added.length){state.msg={html:`Block ${esc(dups.join(', '))} already has ${esc(tn(state.opKey,'en'))} on this order. <button data-repeat="1">Add as a repeat pass</button>`,cls:'warn'}}
+  else if(dups.length){state.msg={html:`Added ${added.length}. Skipped Block ${esc(dups.join(', '))} (already has ${esc(tn(state.opKey,'en'))}). <button data-repeat="1">Add as a repeat pass</button>`,cls:'warn'}}
+  else state.msg={text:`Added ${added.length} task${added.length>1?'s':''}: Block ${added.join(', ')}.`,cls:'ok'};
+  state.pubMsg='';save();renderSup();renderOp();
+}
+function publish(){
+  if(isLive()||!state.tasks.length)return;
+  if(sim.status==='complete')sim.status='idle';
+  state.published={ranch:state.ranch,tractor:state.tractor,operator:state.operator,tasks:state.tasks.map(t=>({...t})),snap:orderSnapshot(),time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})};
+  const ids=new Set(state.tasks.map(t=>t.id));for(const k of Object.keys(state.progress))if(!ids.has(k))delete state.progress[k];sim.covVer++;
+  state.pubMsg='';save();render();
+}
+function resetPilot(){
+  sim.covVer++;sim.histVer++;sim.lastPos=null;sim.inBlock=null;state.tasks=[];state.published=null;state.progress={};state.history={};state.alerts=[];state.selected=[];state.day=1;state.msg={text:'',cls:''};state.pubMsg='';
+  sim.status='idle';sim.playing=false;sim.mode='route';sim.trail=[];sim.pos=null;sim.wrong=null;sim.alertId=null;sim.saved=null;
+  $('inBlocks').value='';$('inNotes').value='';supMap.fit();opMap.fit();opMap.setFollow(true);save();render();
+}
+
+/* =====================================================================
+   WIRING
+   ===================================================================== */
+supMap.onBlockClick=selectBlock;
+function setTab(t){state.tab=t;$('supView').classList.toggle('hidden',t!=='sup');$('opView').classList.toggle('hidden',t!=='op');$('tabSup').classList.toggle('active',t==='sup');$('tabOp').classList.toggle('active',t==='op');
+  requestAnimationFrame(()=>{(t==='sup'?supMap:opMap).resize();render()})}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+function mapCtl(map,e){const b=e.target.closest('button');if(!b)return;const z=b.dataset.z;const c=map.cam;
+  if(z==='in')map.zoomBy(1.5,map.follow&&map.mpos?map.mpos[0]:c.cx,map.follow&&map.mpos?map.mpos[1]:c.cy);
+  else if(z==='out')map.zoomBy(1/1.5,c.cx,c.cy);
+  else if(z==='fit'){map.fit();if(map.kind==='op')map.setFollow(false)}
+  else if(z==='follow'){map.setFollow(!map.follow);if(map.follow&&sim.pos&&map.cam.s>1)map.setScale(CONFIG.workScale)}}
+document.querySelector('#supMapWrap .mapctl').addEventListener('click',e=>mapCtl(supMap,e));
+document.querySelector('#opMapWrap .mapctl').addEventListener('click',e=>mapCtl(opMap,e));
+$('selOp').addEventListener('change',e=>{state.opKey=e.target.value;state.msg={text:'',cls:''};save();renderSup()});
+$('selDir').addEventListener('change',e=>{state.dirKey=e.target.value;save();renderSup()});
+$('selPat').addEventListener('change',e=>{state.patKey=e.target.value;save();renderSup()});
+$('howCard').addEventListener('click',e=>{const b=e.target.closest('[data-entry]');if(b)setEntry(b.dataset.entry)});
+$('selTractor').addEventListener('change',e=>{state.tractor=e.target.value;save();render()});
+$('selOperator').addEventListener('change',e=>{state.operator=e.target.value;save();render()});
+$('inBlocks').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();selectTyped()}});
+$('btnAdd').addEventListener('click',()=>addToOrder(false));
+$('btnClear').addEventListener('click',()=>{state.selected=[];state.msg={text:'',cls:''};$('inBlocks').value='';renderSup()});
+$('selChips').addEventListener('click',e=>{const b=e.target.closest('[data-rm]');if(b){state.selected=state.selected.filter(x=>x!==b.dataset.rm);renderSup()}});
+$('selMsg').addEventListener('click',e=>{if(e.target.closest('[data-repeat]'))addToOrder(true)});
+$('taskList').addEventListener('click',e=>{if(isLive())return;const mv=e.target.closest('[data-mv]'),rm=e.target.closest('[data-rmt]');
+  if(mv){const[i,d]=mv.dataset.mv.split(':').map(Number),j=i+d;if(j>=0&&j<state.tasks.length){[state.tasks[i],state.tasks[j]]=[state.tasks[j],state.tasks[i]];save();render()}}
+  if(rm){const t=state.tasks.splice(Number(rm.dataset.rmt),1)[0];if(t){delete state.progress[t.id];sim.covVer++}save();render()}});
+$('btnPublish').addEventListener('click',publish);
+let resetArm=0;$('btnReset').addEventListener('click',()=>{const b=$('btnReset');if(Date.now()-resetArm<3000){resetArm=0;b.textContent='Reset pilot';resetPilot()}else{resetArm=Date.now();b.textContent='Click again to confirm';setTimeout(()=>{if(resetArm&&Date.now()-resetArm>=2900){resetArm=0;b.textContent='Reset pilot'}},3100)}});
+$('supAlert').addEventListener('click',e=>{const b=e.target.closest('[data-clearalert]');if(b){const a=state.alerts.find(x=>x.id===b.dataset.clearalert);if(a)a.cleared=true;save();renderSup()}});
+$('btnStart').addEventListener('click',startWorkday);
+$('btnEnd').addEventListener('click',endWorkday);
+$('btnGps').addEventListener('click',()=>{GPS.on?gpsOff():gpsOn()});
+$('btnGpsJson').addEventListener('click',()=>gpsExport('json'));$('btnGpsCsv').addEventListener('click',()=>gpsExport('csv'));
+$('btnGpsClr').addEventListener('click',()=>{if(confirm('Delete the stored GPS log on this device?'))gpsClear()});
+document.querySelectorAll('[data-lang]').forEach(b=>b.addEventListener('click',()=>{state.lang=b.dataset.lang;save();renderOp()}));
+$('pPlay').addEventListener('click',togglePlay);
+$('pNext').addEventListener('click',nextBlock);
+$('pWrong').addEventListener('click',wrongBlockTest);
+$('pReset').addEventListener('click',resetSim);
+$('pEnd').addEventListener('click',()=>{sim.demoWrongEnd=!sim.demoWrongEnd;renderOp()});
+document.querySelectorAll('#pSpeed button').forEach(b=>b.addEventListener('click',()=>{sim.speed=Number(b.dataset.sp);renderOp()}));
+$('pDelay').addEventListener('change',e=>{CONFIG.wrongConfirmSeconds=Number(e.target.value)});
+$('aoAck').addEventListener('click',ackAlert);
+$('btnAbout').addEventListener('click',()=>$('about').classList.remove('hidden'));
+$('btnAboutClose').addEventListener('click',()=>$('about').classList.add('hidden'));
+$('about').addEventListener('click',e=>{if(e.target.id==='about')$('about').classList.add('hidden')});
+window.addEventListener('offline',()=>document.body.classList.add('img-offline'));
+window.addEventListener('online',()=>{probeImagery()});
+
+load();
+try{if(localStorage.getItem(GPSON)==='1')setTimeout(gpsOn,300)}catch(e){}
+
+/* ---------- device / layout mode ---------- */
+function applyDevice(){
+  const m=state.device||'auto';const phone=m==='phone'||(m==='auto'&&Math.min(innerWidth,screen.width||innerWidth)<=820&&innerWidth<=820);
+  document.body.classList.toggle('dev-phone',phone);
+  const vp=document.querySelector('meta[name=viewport]');
+  vp.setAttribute('content',m==='ipad'?'width=1024':m==='desktop'?'width=1280':'width=device-width,initial-scale=1,viewport-fit=cover');
+  document.querySelectorAll('#devMenu [data-dev]').forEach(b=>b.querySelector('.ck').textContent=b.dataset.dev===m?'✓':'');
+  requestAnimationFrame(()=>{supMap.resize();opMap.resize()});
+  // Safety net: if this browser ignores the scaled viewport on a small screen, fall back to the phone layout so the menu never gets stuck.
+  clearTimeout(applyDevice.t);
+  if(m==='ipad'||m==='desktop')applyDevice.t=setTimeout(()=>{if(innerWidth<=820&&(state.device==='ipad'||state.device==='desktop')){state.device='phone';save();applyDevice()}},500);
+}
+$('btnView').addEventListener('click',e=>{e.stopPropagation();$('devMenu').classList.toggle('hidden')});
+document.addEventListener('click',e=>{if(!e.target.closest('#devMenu'))$('devMenu').classList.add('hidden')});
+$('devMenu').addEventListener('click',e=>{const b=e.target.closest('[data-dev]');if(b){state.device=b.dataset.dev;save();applyDevice();$('devMenu').classList.add('hidden')}if(e.target.closest('#btnAbout'))$('devMenu').classList.add('hidden')});
+window.addEventListener('resize',()=>{if(state.device==='auto')applyDevice()});
+applyDevice();probeImagery();
+// a restored published order may carry partial progress, but never a live simulation
+render();
+requestAnimationFrame(loop);
+window.NK={GPS,GPSCFG,gpsFix,gpsOn,gpsOff,llToScreen,screenToLL,gpsExport,bufBlock,zoneOf,vNeighbors,startTask,groupTasks,dirLines,planStart,track,taskAlleys,taskStat,adjacentOnOrder,setEntry,focusTask,bg,simRoute,scr,toVT,applyDevice,state,sim,CONFIG,FEATURES,tick,frame,getRoute,blockAt,inRings,startWorkday,endWorkday,nextBlock,wrongBlockTest,ackAlert,publish,selectBlock,selectTyped,addToOrder,resetSim,resetPilot,currentTask,authSet,supMap,opMap,setTab,render:()=>render()};
+})();
+</script>
+</body>
+</html>
