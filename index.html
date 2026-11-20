@@ -904,7 +904,7 @@ function tick(dt){
    ===================================================================== */
 const GPSKEY='napanook-gps-log-v1',GPSON='napanook-gps-on';
 const GPSCFG={maxAcc:35,enterBuf:2.5,stayBuf:2.5,confirmFixes:2,wrongSeconds:4,wrongDepth:4,lostSeconds:12,alpha:.6,turnBack:10,keep:6000};
-const GPS={on:false,watch:null,wake:null,log:[],events:[],filt:null,cand:null,wrong:null,lastAcc:null,lastTs:0,err:null,doneAt:null,flushT:0,timer:null};
+const GPS={far:0,on:false,watch:null,wake:null,log:[],events:[],filt:null,cand:null,wrong:null,lastAcc:null,lastTs:0,err:null,doneAt:null,flushT:0,timer:null};
 function llToScreen(lat,lon){const R=TILE_REF,n=Math.pow(2,17),X=(lon+180)/360*n,Y=(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n,px=(X-R.x)*256,py=(Y-R.y)*256;return[R.e+R.a*px+R.c*py,R.f+R.b*px+R.d*py]}
 function screenToLL(sx,sy){const [X,Y]=screenToTile(17,sx,sy),n=Math.pow(2,17);return{lon:X/n*360-180,lat:Math.atan(Math.sinh(Math.PI*(1-2*Y/n)))*180/Math.PI}}
 function logEv(type,d){if(!GPS.on)return;GPS.events.push({t:Date.now(),type,...d});if(GPS.events.length>4000)GPS.events.shift()}
@@ -932,11 +932,12 @@ function gpsTurn(b,p,pr){
   if(tk&&(pr.rows||0)+1>=taskAlleys(tk).length&&farHit()){GPS.tr=null;logEv('lastrow',{block:b,side:pr.open.side,T0:Math.round(tr.T0),m:Math.round(tr.m),len:Math.round(len),T:Math.round(T)});onExit(b,tr.pm);return} // final row reached the far end: close it now, no need to wait for the exit
   else if(farHit()&&s<tr.m-GPSCFG.turnBack){GPS.tr=null;logEv('turn',{block:b});onExit(b,tr.pm);onEnter(b,p)}
 }
+function gpsKmFromRanch(lat,lon){const c=screenToLL((RANCH_BB[0]+RANCH_BB[2])/2,(RANCH_BB[1]+RANCH_BB[3])/2),R=6371,dl=(lat-c.lat)*Math.PI/180,dn=(lon-c.lon)*Math.PI/180,a=Math.sin(dl/2)**2+Math.cos(lat*Math.PI/180)*Math.cos(c.lat*Math.PI/180)*Math.sin(dn/2)**2,km=2*R*Math.asin(Math.sqrt(a));return km>1?km:0}
 function pushLog(r){GPS.log.push(r);if(GPS.log.length>GPSCFG.keep*2)GPS.log.splice(0,GPSCFG.keep)}
 function gpsFix(f){ // f: {lat,lon,accuracy,speed,heading,ts}
   const ts=f.ts||Date.now(),r2=v=>v==null?null:Math.round(v*100)/100,rec={t:ts,lat:f.lat,lon:f.lon,acc:r2(f.accuracy),spd:r2(f.speed),hdg:f.heading==null||isNaN(f.heading)?null:Math.round(f.heading)};
   const raw=llToScreen(f.lat,f.lon);rec.x=r2(raw[0]);rec.y=r2(raw[1]);
-  GPS.lastTs=ts;GPS.lastAcc=f.accuracy;GPS.err=null;
+  GPS.lastTs=ts;GPS.lastAcc=f.accuracy;GPS.err=null;GPS.far=gpsKmFromRanch(f.lat,f.lon);
   if(f.accuracy!=null&&f.accuracy>GPSCFG.maxAcc){rec.skip='accuracy';pushLog(rec);gpsChip();return}
   const prev=GPS.filt;GPS.filt=prev?[prev[0]+(raw[0]-prev[0])*GPSCFG.alpha,prev[1]+(raw[1]-prev[1])*GPSCFG.alpha]:raw.slice();
   const p=GPS.filt;if(prev&&Math.hypot(p[0]-prev[0],p[1]-prev[1])>1.5)setHeading([p[0]-prev[0],p[1]-prev[1]]);
@@ -964,7 +965,7 @@ function gpsChip(){
   if(GPS.err){txt='GPS: '+GPS.err;cls='bad'}
   else if(age==null){txt='Waiting for GPS…';cls='warn'}
   else if(age>GPSCFG.lostSeconds){txt='GPS signal lost ('+Math.round(age)+' s)';cls='bad'}
-  else{const a=GPS.lastAcc;txt='GPS ±'+(a==null?'?':Math.round(a))+' m';cls=a!=null&&a>GPSCFG.maxAcc?'warn':'ok'}
+  else{const a=GPS.lastAcc;txt='GPS ±'+(a==null?'?':Math.round(a))+' m';cls=a!=null&&a>GPSCFG.maxAcc?'warn':'ok';if(GPS.far){txt+=' · you are '+GPS.far.toFixed(1)+' km from the vineyard (no dot until you are there)';cls='warn'}}
   c.textContent=txt;c.className='gpschip '+cls;
 }
 function gpsStartWorkday(){
@@ -1170,7 +1171,7 @@ function renderAll(){renderSup();renderOp();syncDir()}
 let render=renderAll;
 let trKey='';
 function frame(dt){
-  const showPos=sim.pos&&(isLive()||sim.status==='complete')?sim.pos:null;
+  const showPos=sim.pos&&(isLive()||sim.status==='complete'||(GPS.on&&!GPS.far))?sim.pos:null;
   opMap.setMarker(showPos,sim.heading);supMap.setMarker(showPos,sim.heading);
   // blue = the current run (it follows the driver along the fitted lanes); grey = earlier runs
   const key=sim.covVer+'|'+sim.histVer+'|'+sim.trail.length+'|'+state.published;
