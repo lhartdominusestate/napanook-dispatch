@@ -404,7 +404,7 @@ body.dev-phone #devMenu{right:8px}
     <div class="tasks" id="taskList"></div>
     <div class="footer">
      <p class="pubnote" id="pubNote"></p>
-     <div id="sendBox" class="hidden"><div id="sendMsg" style="display:none;font-weight:700;color:#14633a;font-size:13px;margin-bottom:6px"></div><label class="f" for="sendLink">Link for the operator's iPad (backup)</label><div style="display:flex;gap:6px"><input id="sendLink" readonly style="flex:1;min-width:0;font-size:12px"><button class="btn sec2" id="btnCopyLink" style="height:36px">Copy</button></div><small style="color:#6b756f">Send it to the iPad (AirDrop, text or email), open it there, choose the operator and sign in.</small></div>
+     <div id="sendBox" class="hidden"><div id="sendMsg" style="display:none;font-weight:700;color:#14633a;font-size:13px;margin-bottom:6px"></div><div id="sendRow" style="display:none"><label class="f" for="sendLink">Server unreachable: send this link to the operator's device instead</label><div style="display:flex;gap:6px"><input id="sendLink" readonly style="flex:1;min-width:0;font-size:12px"><button class="btn sec2" id="btnCopyLink" style="height:36px">Copy</button></div></div></div>
      <div class="btnrow"><button class="btn grow" id="btnPublish">Publish to operator</button><button class="btn sec2" id="btnReset" title="Clear the whole pilot">Reset pilot</button></div>
     </div>
    </aside>
@@ -1114,7 +1114,7 @@ function orderLink(){
   const o={r:p.ranch,t:p.tractor,o:p.operator,k:p.tasks.map(t=>[t.id,t.block,t.operation,t.notes||'',t.pass||'',t.dir||'SN',t.pat||'all'])};
   return location.href.split('#')[0].split('?')[0]+'#order='+b64u(o);
 }
-function sendBoxUI(){const b=$('sendBox');if(!b)return;const on=!!state.published;b.classList.toggle('hidden',!on);if(on){const l=orderLink();if($('sendLink').value!==l)$('sendLink').value=l;const m=$('sendMsg');m.textContent=sbOn()?(cloud.msg||'')+(cloud.stat?'  ·  '+cloud.stat:''):'';m.style.display=m.textContent?'block':'none'}}
+function sendBoxUI(){const b=$('sendBox');if(!b)return;const on=!!state.published;b.classList.toggle('hidden',!on);if(on){const l=orderLink();if($('sendLink').value!==l)$('sendLink').value=l;const m=$('sendMsg');m.textContent=sbOn()?(cloud.msg||'')+(cloud.stat?'  ·  '+cloud.stat:''):'';m.style.display=m.textContent?'block':'none';$('sendRow').style.display=(!sbOn()||/Could not/.test(cloud.msg))?'block':'none'}}
 function importOrder(o){ // o: {ranch,tractor,operator,tasks,snap?}
   const tasks=o.tasks.map(t=>({...t}));
   const snap=o.snap||JSON.stringify({ranch:o.ranch,tractor:o.tractor,operator:o.operator,tasks:tasks.map(t=>[t.id,t.block,t.operation,t.notes,t.pass,t.dir||'SN',t.pat||'all'])});
