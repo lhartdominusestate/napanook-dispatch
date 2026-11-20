@@ -1393,7 +1393,9 @@ function publish(){
 function resetPilot(){
   sim.covVer++;sim.histVer++;sim.lastPos=null;sim.inBlock=null;state.tasks=[];state.published=null;state.progress={};state.history={};state.alerts=[];state.selected=[];state.day=1;state.msg={text:'',cls:''};state.pubMsg='';
   sim.status='idle';sim.playing=false;sim.mode='route';sim.trail=[];sim.pos=null;sim.wrong=null;sim.alertId=null;sim.saved=null;
-  $('inBlocks').value='';$('inNotes').value='';supMap.fit();opMap.fit();opMap.setFollow(true);save();render();
+  $('inBlocks').value='';$('inNotes').value='';supMap.fit();opMap.fit();opMap.setFollow(true);
+  supAuthed=false;session={operator:null};try{localStorage.removeItem(SUPKEY);localStorage.removeItem(SESSKEY)}catch(e){} // reset = everyone signs in again
+  save();render();
 }
 
 /* =====================================================================
