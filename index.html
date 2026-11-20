@@ -607,7 +607,7 @@ function dirLines(t){
   const mk=(r,k)=>{if(r)out.push({a:r.a,b:r.b,ns,side:k,grp:st.id,id:st.id+'>'+mem[mem.length-1].id+'#'+k})};
   /* arrows spread along the whole row length so one is always close to the tractor, wherever it is between the east and west ends;
      an even count keeps the middle free for the block number. Narrow block: a single arrow set off the label. */
-  const n=span<54?1:span<110?2:4;
+  const n=span<54?1:2;
   if(n===1)mk(place([.3,.4,.5,.2,.6].map(f=>Er-span*f)),0);
   else{const ins=9,A=Wr+ins,B=Er-ins;for(let k=0;k<n;k++){const T0=A+(B-A)*k/(n-1),sh=k===0?[0,5,11,19,29]:k===n-1?[0,-5,-11,-19,-29]:[0,4,-4,8,-8];mk(place(sh.map(d=>T0+d)),k)}}
   /* keep the arrow level with the rows' cross direction so it reads as a clean horizontal/vertical line */
