@@ -1139,12 +1139,12 @@ const SUPA={url:'https://ggvmxziesftsffkpskhb.supabase.co',key:'sb_publishable_9
 const sbOn=()=>!!(SUPA.url&&SUPA.key);const cloud={msg:'',stat:'',busy:false};
 async function sb(path,opt={}){
   const r=await fetch(SUPA.url.replace(/\/$/,'')+'/rest/v1/'+path,{...opt,headers:{apikey:SUPA.key,...(/^sb_/.test(SUPA.key)?{}:{Authorization:'Bearer '+SUPA.key}),'Content-Type':'application/json',...(opt.headers||{})}});
-  if(!r.ok)throw new Error('HTTP '+r.status);const tx=await r.text();return tx?JSON.parse(tx):null;
+  if(!r.ok){let d='';try{d=(await r.text()).slice(0,160)}catch(e){}throw new Error('HTTP '+r.status+' '+d)}const tx=await r.text();return tx?JSON.parse(tx):null;
 }
 async function cloudPublish(){
   const p=state.published;if(!sbOn()||!p)return;
   try{await sb('orders?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([{id:p.operator,payload:p,progress:{},updated_at:new Date().toISOString()}])});cloud.msg='✓ Sent to '+p.operator+' — it appears on their device after they sign in'}
-  catch(e){cloud.msg='Could not reach the server — use the link below'}
+  catch(e){cloud.msg='Could not reach the server — '+(e&&e.message&&/^HTTP/.test(e.message)?e.message:'network error: '+((e&&e.message)||e))}
   sendBoxUI();
 }
 async function cloudPull(){ // operator device: fetch the order assigned to whoever is signed in
