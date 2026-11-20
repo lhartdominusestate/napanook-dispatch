@@ -404,7 +404,7 @@ body.dev-phone #devMenu{right:8px}
     <div class="tasks" id="taskList"></div>
     <div class="footer">
      <p class="pubnote" id="pubNote"></p>
-     <div id="sendBox" class="hidden"><label class="f" for="sendLink">Link for the operator's iPad</label><div style="display:flex;gap:6px"><input id="sendLink" readonly style="flex:1;min-width:0;font-size:12px"><button class="btn sec2" id="btnCopyLink" style="height:36px">Copy</button></div><small style="color:#6b756f">Send it to the iPad (AirDrop, text or email), open it there, choose the operator and sign in.</small></div>
+     <div id="sendBox" class="hidden"><div id="sendMsg" style="display:none;font-weight:700;color:#14633a;font-size:13px;margin-bottom:6px"></div><label class="f" for="sendLink">Link for the operator's iPad (backup)</label><div style="display:flex;gap:6px"><input id="sendLink" readonly style="flex:1;min-width:0;font-size:12px"><button class="btn sec2" id="btnCopyLink" style="height:36px">Copy</button></div><small style="color:#6b756f">Send it to the iPad (AirDrop, text or email), open it there, choose the operator and sign in.</small></div>
      <div class="btnrow"><button class="btn grow" id="btnPublish">Publish to operator</button><button class="btn sec2" id="btnReset" title="Clear the whole pilot">Reset pilot</button></div>
     </div>
    </aside>
@@ -1114,23 +1114,57 @@ function orderLink(){
   const o={r:p.ranch,t:p.tractor,o:p.operator,k:p.tasks.map(t=>[t.id,t.block,t.operation,t.notes||'',t.pass||'',t.dir||'SN',t.pat||'all'])};
   return location.href.split('#')[0].split('?')[0]+'#order='+b64u(o);
 }
-function sendBoxUI(){const b=$('sendBox');if(!b)return;const on=!!state.published;b.classList.toggle('hidden',!on);if(on){const l=orderLink();if($('sendLink').value!==l)$('sendLink').value=l}}
+function sendBoxUI(){const b=$('sendBox');if(!b)return;const on=!!state.published;b.classList.toggle('hidden',!on);if(on){const l=orderLink();if($('sendLink').value!==l)$('sendLink').value=l;const m=$('sendMsg');m.textContent=sbOn()?(cloud.msg||'')+(cloud.stat?'  ·  '+cloud.stat:''):'';m.style.display=m.textContent?'block':'none'}}
+function importOrder(o){ // o: {ranch,tractor,operator,tasks,snap?}
+  const tasks=o.tasks.map(t=>({...t}));
+  const snap=o.snap||JSON.stringify({ranch:o.ranch,tractor:o.tractor,operator:o.operator,tasks:tasks.map(t=>[t.id,t.block,t.operation,t.notes,t.pass,t.dir||'SN',t.pat||'all'])});
+  if(state.published&&state.published.snap===snap&&state.published.operator===o.operator)return false;
+  state.ranch=o.ranch;state.tractor=o.tractor;state.operator=o.operator;state.tasks=tasks;
+  state.published={ranch:o.ranch,tractor:o.tractor,operator:o.operator,tasks:tasks.map(t=>({...t})),snap,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})};
+  state.progress={};state.history={};state.alerts=[];state.day=1;state.resume=null;sim.status='idle';sim.playing=false;sim.mode='route';sim.trail=[];sim.pos=null;sim.covVer++;sim.histVer++;
+  return true;
+}
 function applyOrderHash(){
   const m=/#order=([\w-]+)/.exec(location.hash);if(!m)return false;
   try{
     const o=unb64u(m[1]);
-    const tasks=o.k.map(a=>({id:a[0],block:a[1],operation:a[2],notes:a[3],pass:a[4],dir:a[5],pat:a[6]}));
-    const snap=JSON.stringify({ranch:o.r,tractor:o.t,operator:o.o,tasks:tasks.map(t=>[t.id,t.block,t.operation,t.notes,t.pass,t.dir||'SN',t.pat||'all'])});
-    if(!(state.published&&state.published.snap===snap)){
-      state.ranch=o.r;state.tractor=o.t;state.operator=o.o;state.tasks=tasks;
-      state.published={ranch:o.r,tractor:o.t,operator:o.o,tasks:tasks.map(t=>({...t})),snap,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})};
-      state.progress={};state.history={};state.alerts=[];state.day=1;state.resume=null;sim.status='idle';sim.playing=false;sim.mode='route';sim.trail=[];sim.pos=null;sim.covVer++;sim.histVer++;
-    }
+    importOrder({ranch:o.r,tractor:o.t,operator:o.o,tasks:o.k.map(a=>({id:a[0],block:a[1],operation:a[2],notes:a[3],pass:a[4],dir:a[5],pat:a[6]}))});
     state.tab='op';
     try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
     save();return true;
   }catch(e){return false}
 }
+/* ---------------- online sync (Supabase REST). Leave SUPA empty to use the link method only ---------------- */
+const SUPA={url:'',key:''};
+const sbOn=()=>!!(SUPA.url&&SUPA.key);const cloud={msg:'',stat:'',busy:false};
+async function sb(path,opt={}){
+  const r=await fetch(SUPA.url.replace(/\/$/,'')+'/rest/v1/'+path,{...opt,headers:{apikey:SUPA.key,Authorization:'Bearer '+SUPA.key,'Content-Type':'application/json',...(opt.headers||{})}});
+  if(!r.ok)throw new Error('HTTP '+r.status);const tx=await r.text();return tx?JSON.parse(tx):null;
+}
+async function cloudPublish(){
+  const p=state.published;if(!sbOn()||!p)return;
+  try{await sb('orders?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([{id:p.operator,payload:p,progress:{},updated_at:new Date().toISOString()}])});cloud.msg='✓ Sent to '+p.operator+' — it appears on their device after they sign in'}
+  catch(e){cloud.msg='Could not reach the server — use the link below'}
+  sendBoxUI();
+}
+async function cloudPull(){ // operator device: fetch the order assigned to whoever is signed in
+  const op=sessionOp();if(!sbOn()||cloud.busy||!op||isLive())return;cloud.busy=true;
+  try{const rows=await sb('orders?id=eq.'+encodeURIComponent(op)+'&select=payload');const pl=rows&&rows[0]&&rows[0].payload;
+    if(pl&&pl.tasks&&importOrder(pl)){save();render()}}catch(e){}
+  cloud.busy=false;
+}
+async function cloudPush(){ // operator device: report progress so the supervisor can see it
+  const op=sessionOp(),p=myPub();if(!sbOn()||!op||!p||!isLive())return;
+  try{const c=currentTask()||null,pt=c?progTask(c):null,st=pt?taskStat(pt):null;
+    await sb('orders?id=eq.'+encodeURIComponent(op),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({progress:{status:sim.status,block:pt?pt.block:null,rows:st?st.done:null,total:st?st.total:null,doneBlocks:p.tasks.filter(t=>isDone(t.id)).length,of:p.tasks.length,t:new Date().toISOString()}})})}catch(e){}
+}
+async function cloudWatch(){ // supervisor device: show the operator's latest status
+  const p=state.published;if(!sbOn()||!p||state.tab!=='sup')return;
+  try{const rows=await sb('orders?id=eq.'+encodeURIComponent(p.operator)+'&select=progress');const g=rows&&rows[0]&&rows[0].progress;
+    if(g&&g.t){const ago=Math.max(0,Math.round((Date.now()-new Date(g.t))/1000));cloud.stat=`${p.operator}: ${g.status==='active'?'working':g.status==='blockdone'?'block finished':g.status||'—'}${g.block?` · Block ${g.block}`:''}${g.total?` · ${g.rows}/${g.total} rows`:''} · ${g.doneBlocks}/${g.of} blocks · ${ago<90?ago+' s ago':Math.round(ago/60)+' min ago'}`}else cloud.stat=`${p.operator} has not started yet`;
+    sendBoxUI()}catch(e){}
+}
+if(typeof setInterval!=='undefined'){setInterval(cloudPull,4000);setInterval(cloudPush,5000);setInterval(cloudWatch,5000)}
 $('slGo').addEventListener('click',supLogin);$('slPw').addEventListener('keydown',e=>{if(e.key==='Enter')supLogin()});
 $('btnLogoutSup').addEventListener('click',supLogout);
 $('btnCopyLink').addEventListener('click',async()=>{const l=$('sendLink').value;try{await navigator.clipboard.writeText(l)}catch(e){$('sendLink').select();document.execCommand&&document.execCommand('copy')}$('btnCopyLink').textContent='Copied ✓';setTimeout(()=>$('btnCopyLink').textContent='Copy',1500)});
@@ -1354,7 +1388,7 @@ function publish(){
   if(sim.status==='complete')sim.status='idle';
   state.published={ranch:state.ranch,tractor:state.tractor,operator:state.operator,tasks:state.tasks.map(t=>({...t})),snap:orderSnapshot(),time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})};
   const ids=new Set(state.tasks.map(t=>t.id));for(const k of Object.keys(state.progress))if(!ids.has(k))delete state.progress[k];sim.covVer++;
-  state.pubMsg='';save();render();
+  state.pubMsg='';save();render();cloud.stat='';cloudPublish();
 }
 function resetPilot(){
   sim.covVer++;sim.histVer++;sim.lastPos=null;sim.inBlock=null;state.tasks=[];state.published=null;state.progress={};state.history={};state.alerts=[];state.selected=[];state.day=1;state.msg={text:'',cls:''};state.pubMsg='';
